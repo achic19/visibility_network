@@ -67,7 +67,7 @@ class MergePoint:
         hubs_path = output__along_geometry
         output_hub_dis_line = os.path.join(os.path.dirname(__file__), r'results_file/line_to_points.shp')
 
-        alg = HubDistanceLines()jjj
+        alg = HubDistanceLines()
         alg.initAlgorithm()
         # Some preprocessing for context
         project = QgsProject.instance()
