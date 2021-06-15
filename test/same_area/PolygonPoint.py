@@ -1,15 +1,32 @@
+from shapely.geometry import Point
+
+
+class Slope:
+    def __init__(self, p1: Point, p2: Point):
+        self.slope = (p2.y - p1.y) / (p2.x - p1.x)
+        self.intersect = p1.y - p1.x * self.slope
+
+
 class PolygonPoint:
     def __init__(self, pnt):
         self.pnt = pnt
-        self.nxt = ''
-        self.pre = ''
+        self.nxt = None
+        self.pre = None
+
+        self.NoSlope = True
+        self.nxt_slp = None
+        self.pre_slp = None
 
     def __repr__(self):
-        return "point {}: previous  point is: {}, next point is:{}\n".format(self.pnt, self.pre.pnt, self.nxt.pnt)
+        if self.nxt is not None:
+            return "point {}: previous  point is: {}, next point is:{}\n".format(self.pnt, self.pre.pnt,
+                                                                                 self.nxt.pnt)
+        else:
+            return "point {}: previous  point is: {}, next point is:{}\n".format(self.pnt, self.pre, self.nxt)
 
 
 if __name__ == '__main__':
-    my_polygon = [7, 4, 3, 8, 2, 1, 7]
+    my_polygon = [Point(7, 12), Point(4, 12), Point(7, 3), Point(12, 8), Point(2, 2), Point(0, 8), Point(7, 12)]
     print(my_polygon)
     new_list = []
     fst_pnt = PolygonPoint(my_polygon[0])
@@ -17,7 +34,7 @@ if __name__ == '__main__':
     fst_pnt.nxt = nxt_pnt
     new_list.append(fst_pnt)
     pre_pnt = fst_pnt
-    for i in range(len(my_polygon) - 2):
+    for i in range(1, len(my_polygon) - 2):
         new_pnt = PolygonPoint(my_polygon[i + 1])
         nxt_pnt.nxt = new_pnt
         nxt_pnt.pre = pre_pnt
@@ -29,3 +46,7 @@ if __name__ == '__main__':
     fst_pnt.pre = nxt_pnt
     nxt_pnt.pre = pre_pnt
     print(new_list)
+    for temp_pnt in new_list:
+        if temp_pnt.NoSlope:
+            temp_pnt.pre_slp = Slope(temp_pnt.pnt, temp_pnt.pre.pnt)
+            temp_pnt.nxt_slp = Slope(temp_pnt.pnt, temp_pnt.nxt.pnt)
