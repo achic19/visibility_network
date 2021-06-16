@@ -6,6 +6,9 @@ class Slope:
         self.slope = (p2.y - p1.y) / (p2.x - p1.x)
         self.intersect = p1.y - p1.x * self.slope
 
+    def __repr__(self):
+        return "the slope is: {:.2f}, intersect is: {:.2f}".format(self.slope, self.intersect)
+
 
 class PolygonPoint:
     def __init__(self, pnt):
@@ -13,7 +16,6 @@ class PolygonPoint:
         self.nxt = None
         self.pre = None
 
-        self.NoSlope = True
         self.nxt_slp = None
         self.pre_slp = None
 
@@ -42,11 +44,20 @@ if __name__ == '__main__':
         pre_pnt = nxt_pnt
         nxt_pnt = new_pnt
 
-    nxt_pnt.nxt = fst_pnt
-    fst_pnt.pre = nxt_pnt
     nxt_pnt.pre = pre_pnt
+    nxt_pnt.nxt = fst_pnt
+    new_list.append(nxt_pnt)
+    fst_pnt.pre = nxt_pnt
     print(new_list)
     for temp_pnt in new_list:
-        if temp_pnt.NoSlope:
+        if temp_pnt.pre_slp is None:
             temp_pnt.pre_slp = Slope(temp_pnt.pnt, temp_pnt.pre.pnt)
+            temp_pnt.pre.nxt_slp = temp_pnt.pre_slp
+        if temp_pnt.nxt_slp is None:
             temp_pnt.nxt_slp = Slope(temp_pnt.pnt, temp_pnt.nxt.pnt)
+            temp_pnt.nxt.pre_slp = temp_pnt.nxt_slp
+    for temp_pnt in new_list:
+        print(temp_pnt.pre_slp)
+        print(temp_pnt.nxt_slp)
+        print(temp_pnt)
+
