@@ -10,7 +10,7 @@ def test_same_area_grid(extent, spacing):
 
     # Create the grid layer
     # vector_grid = QgsVectorLayer('Polygon?crs=' + crs, 'vector_grid', 'memory')
-    path = os.getcwd() + "/test/new_test/grid.shp"
+    path = "grid.shp"
     if os.path.exists(path):
         print(path)
     else:
@@ -40,11 +40,11 @@ def test_same_area_grid(extent, spacing):
             point3 = QgsPointXY(x + hspacing, y - vspacing)
             point4 = QgsPointXY(x, y - vspacing)
             vertices = [point1, point2, point3, point4]  # Vertices of the polygon for the current id
-            inAttr = [id, x, x + hspacing, y - vspacing, y]
+            # inAttr = [id, x, x + hspacing, y - vspacing, y]
             feat = QgsFeature()
             feat.setGeometry(QgsGeometry().fromPolygonXY([vertices]))  # Set geometry for the current id
-            feat.setAttributes(inAttr)  # Set attributes for the current id
-            prov.addFeatures([feat])
+            # feat.setAttributes(inAttr)  # Set attributes for the current id
+            # prov.addFeatures([feat])
             x = x + hspacing
             id += 1
         y = y - vspacing

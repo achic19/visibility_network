@@ -5,41 +5,13 @@ import sys
 from operator import itemgetter
 
 from PyQt5.QtGui import *
-# from test.test_same_area import test_same_area_grid
+# from test_same_area.test_same_area import test_same_area_grid
 from qgis.PyQt.QtCore import QVariant
 from qgis.core import *
 from shapely.geometry import Point
+from PolygonPoint import PolygonPoint, LineParameters
 
 sys.path.append(r'C:\Program Files\QGIS 3.0\apps\qgis\python\plugins')
-
-
-# Reference the algorithm you want to run
-
-class PolygonPoint(Point):
-    """
-    The class store the point and the equation_params to the previous and next points based on their order
-     in the polygon
-    """
-
-    def __init__(self, **kwargs):
-        print(kwargs)
-        super().__init__(kwargs['pnt'][0], kwargs['pnt'][1])
-
-        # self.eq_params_pre = self.calc_equation_params(kwargs['pre_pnt'][0], kwargs['pre_pnt'][1])
-        # self.eq_params_ne = self.calc_equation_params(kwargs['nxt_pnt'][0], kwargs['nxt_pnt'][1])
-
-    def calc_equation_params(self, x_1, y_1):
-        """
-        The method return the equation_params(slope and distance) from two points (the object points and another
-        given points)
-        :param x_1:
-        :param y_1:
-        :return:
-        """
-        slope = (y_1 - self.y) / (x_1 - self.x)
-        intersect = self.y - self.x * slope
-        print([slope, intersect])
-        return [slope, intersect]
 
 
 class Cell:
@@ -72,9 +44,8 @@ class SameAreaCell:
              range(n_x)] for j in range(n_y)]
 
     def add_point(self, pnt: PolygonPoint):
-
-        in_x = int((pnt.x - self.x_min) / self.size_cell)
-        in_y = int((pnt.y - self.y_min) / self.size_cell)
+        in_x = int((pnt.pnt.x - self.x_min) / self.size_cell)
+        in_y = int((pnt.pnt.y - self.y_min) / self.size_cell)
         self.data_set[in_y][in_x].points.append(pnt)
 
     def find_cell(self, pnt):
@@ -85,7 +56,7 @@ class SameAreaCell:
     def create_grid_shapefile(self):
         # Create the grid layer
         # vector_grid = QgsVectorLayer('Polygon?crs=' + crs, 'vector_grid', 'memory')
-        path = os.getcwd() + "/test/new_test/grid.shp"
+        path = "test_same_area/grid.shp"
         if os.path.exists(path):
             print(path)
         else:
@@ -116,6 +87,44 @@ class SameAreaCell:
         # Update fields for the vector grid
         vector_grid.updateFields()
 
+    # Python 3 program for Bresenham’s Line Generation
+    # Assumptions :
+    # 1) Line is drawn from left to right.
+    # 2) x1 < x2 and y1 < y2
+    # 3) Slope of the line is between 0 and 1.
+    # We draw a line from lower left to upper
+    # right.
+
+    # function for line generation
+    def bresenham(self, x1, y1, x2, y2):
+
+        m_new = 2 * (y2 - y1)
+        slope_error_new = m_new - (x2 - x1)
+
+        y = y1
+        for x in range(x1, x2 + 1):
+
+            print("(", x, ",", y, ")\n")
+
+            # Add slope to increment angle formed
+            slope_error_new = slope_error_new + m_new
+
+            # Slope error reached limit, time to
+            # increment y and update slope error.
+            if (slope_error_new >= 0):
+                y = y + 1
+                slope_error_new = slope_error_new - 2 * (x2 - x1)
+
+    # driver function
+    if __name__ == '__main__':
+        x1 = 3
+        y1 = 2
+        x2 = 15
+        y2 = 5
+        bresenham(x1, y1, x2, y2)
+
+    # This code is contributed by ash264
+
 
 def upload_new_layer(path, name):
     """Upload shp layers"""
@@ -133,8 +142,10 @@ if __name__ == "__main__":
     QgsApplication.setPrefixPath(r'C:\Program Files\QGIS 3.0\apps\qgis', True)
     QgsApplication.initQgis()
 
-    input_constrains = 'work_folder/general/constrains.shp'
-    input_in = 'work_folder/general/intersections.shp'
+
+    # input_constrains = 'test_same_area/multiparts.shp'
+    input_constrains = 'constrains.shp'
+    input_in = 'intersections.shp'
 
     input_layers = [upload_new_layer(input_constrains, 'file'), upload_new_layer(input_in, 'file')]
 
@@ -148,32 +159,41 @@ if __name__ == "__main__":
     # Build SameAreaCell object
     geo_data_base = SameAreaCell(rectangle_points, 100)
 
-    # Build an grid layer (test)
-    # test_same_area_grid([geo_data_base.x_min, geo_data_base.x_max, geo_data_base.y_min, geo_data_base.y_max],
-    #                     geo_data_base.size_cell)
-
     # Print the points polygon
     for feature in input_layers[0].getFeatures():
         feature_list = feature.geometry().asJson()
         attribute = feature.attributes()[0]
         json1_data = json.loads(feature_list)['coordinates']
-        cor_sets = json1_data[0]
-        # Next row is for adding the line equations for the previous and next points latter
-        for cor_set in cor_sets:
-            len_list_no_last = len(cor_set) - 1
-            geo_data_base.add_point(PolygonPoint(pnt=cor_set[0], nxt_pnt=cor_set[1]))
-            for i in range(0, len_list_no_last):
-                if i != 0:
-                    if i == len_list_no_last - 1:
-                        second_point.nexr_pnt = cor_set[0]
-                    second_point.nexr_pnt(cor_set[i + 1])
-                    geo_data_base.add_point(second_point)
-                second_point = PolygonPoint(pnt=cor_set[i + 1], pre_pnt=cor_set[i])
+        for part in json1_data:
+            # Create two PolygonPoint objects from the the first two Points in the polygon
+            sub_part = part[0]
+            fst_pnt = PolygonPoint(sub_part[0])
+            nxt_pnt = PolygonPoint(sub_part[1])
+            # update the next point of the first PolygonPoint object and put it the new database
+            fst_pnt.nxt = nxt_pnt
+            geo_data_base.add_point(fst_pnt)
+            pre_pnt = fst_pnt
+            for i in range(1, len(sub_part) - 2):
+                # this loop creates new PolygonPoint object (the next index) and update all rest
+                # points of the current  PolygonPoint object (the current index)
+                # than put it into the database and update the temp variables for the next loop
+                new_pnt = PolygonPoint(sub_part[i + 1])
+                nxt_pnt.nxt = new_pnt
+                nxt_pnt.pre = pre_pnt
+                geo_data_base.add_point(nxt_pnt)
+                pre_pnt = nxt_pnt
+                nxt_pnt = new_pnt
 
-                # elif i == len_list_no_last:
-                #     pass
+            # operation for the last point in the polygon
+            nxt_pnt.pre = pre_pnt
+            nxt_pnt.nxt = fst_pnt
+            geo_data_base.add_point(nxt_pnt)
+            fst_pnt.pre = nxt_pnt
 
     # geo_data_base.create_grid_shapefile()
+
+    # for each point in the @input_in
+    # create line for other points in the list
     """For standalone application"""
     # Exit applications
     QgsApplication.exitQgis()

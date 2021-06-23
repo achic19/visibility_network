@@ -14,13 +14,13 @@ class LineParameters:
 
 
 class PolygonPoint:
-    def __init__(self, pnt):
+    def __init__(self, pnt: list):
         """
         The PolygonPoint class object contains the current point (:param pnt)
         and the lines connecting it to the adjacent points
         in  the  polygon ( another two PolygonPoint point and line parameters)
         """
-        self.pnt = pnt
+        self.pnt = Point(pnt[0], pnt[1])
         self.nxt = None
         self.pre = None
 
@@ -28,15 +28,15 @@ class PolygonPoint:
         self.pre_line_params = None
 
     def __repr__(self):
-        if self.nxt is not None:
+        if self.nxt is not None and self.pre is not None:
             return "point {}: previous  point is: {}, next point is:{}\n".format(self.pnt, self.pre.pnt,
                                                                                  self.nxt.pnt)
         else:
-            return "point {}: previous  point is: {}, next point is:{}\n".format(self.pnt, self.pre, self.nxt)
+            return "point {}\n".format(self.pnt)
 
 
 if __name__ == '__main__':
-    my_polygon = [Point(7, 12), Point(4, 12), Point(7, 3), Point(12, 8), Point(2, 2), Point(0, 8), Point(7, 12)]
+    my_polygon = [[7, 12], [4, 12], [7, 3], [12, 8], [2, 2], [0, 8], [7, 12]]
     print(my_polygon)
     new_list = []
     # Create two PolygonPoint objects from the the first two Points in the polygon
@@ -76,4 +76,3 @@ if __name__ == '__main__':
         print(temp_pnt.pre_line_params)
         print(temp_pnt.nxt_line_params)
         print(temp_pnt)
-
