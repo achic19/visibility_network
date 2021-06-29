@@ -17,14 +17,13 @@ sys.path.append(r'C:\Program Files\QGIS 3.0\apps\qgis\python\plugins')
 class Cell:
     def __init__(self, x, y, spacing, i_x, i_y):
         self.points = []
-        self.extent = {'x_y': QgsPointXY(x, y), 'x_max_y': QgsPointXY(x + spacing, y),
-                       'x_max_y_max': QgsPointXY(x + spacing, y + spacing), 'x_y_max': QgsPointXY(x, y + spacing)}
+        self.extent = {'SW': QgsPointXY(x, y), 'SE': QgsPointXY(x + spacing, y),
+                       'NE': QgsPointXY(x + spacing, y + spacing), 'NW': QgsPointXY(x, y + spacing)}
         self.i_e = i_x
         self.i_n = i_y
 
 
 class SameAreaCell:
-
     def __init__(self, points_list, size):
         """
         The class gets a points list and build SameAreaCell upon it with the specified cell size
@@ -87,42 +86,6 @@ class SameAreaCell:
         # Update fields for the vector grid
         vector_grid.updateFields()
 
-    # Python 3 program for Bresenham’s Line Generation
-    # Assumptions :
-    # 1) Line is drawn from left to right.
-    # 2) x1 < x2 and y1 < y2
-    # 3) Slope of the line is between 0 and 1.
-    # We draw a line from lower left to upper
-    # right.
-
-    # function for line generation
-    def bresenham(self, x1, y1, x2, y2):
-
-        m_new = 2 * (y2 - y1)
-        slope_error_new = m_new - (x2 - x1)
-
-        y = y1
-        for x in range(x1, x2 + 1):
-
-            print("(", x, ",", y, ")\n")
-
-            # Add slope to increment angle formed
-            slope_error_new = slope_error_new + m_new
-
-            # Slope error reached limit, time to
-            # increment y and update slope error.
-            if (slope_error_new >= 0):
-                y = y + 1
-                slope_error_new = slope_error_new - 2 * (x2 - x1)
-
-    # driver function
-    if __name__ == '__main__':
-        x1 = 3
-        y1 = 2
-        x2 = 15
-        y2 = 5
-        bresenham(x1, y1, x2, y2)
-
     # This code is contributed by ash264
 
 
@@ -141,7 +104,6 @@ if __name__ == "__main__":
     app = QGuiApplication([])
     QgsApplication.setPrefixPath(r'C:\Program Files\QGIS 3.0\apps\qgis', True)
     QgsApplication.initQgis()
-
 
     # input_constrains = 'test_same_area/multiparts.shp'
     input_constrains = 'constrains.shp'
@@ -191,7 +153,9 @@ if __name__ == "__main__":
             fst_pnt.pre = nxt_pnt
 
     # geo_data_base.create_grid_shapefile()
-
+    inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[1].getFeatures()]
+    # for index_i, feature in enumerate inter_pnts:
+    #     pass
     # for each point in the @input_in
     # create line for other points in the list
     """For standalone application"""
