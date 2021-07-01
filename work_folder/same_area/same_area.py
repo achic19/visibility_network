@@ -47,7 +47,7 @@ class SameAreaCell:
         in_y = int((pnt.pnt.y - self.y_min) / self.size_cell)
         self.data_set[in_y][in_x].points.append(pnt)
 
-    def find_cell(self, pnt):
+    def find_cell(self, pnt: Point):
         in_x = int((pnt.x - self.x_min) / self.size_cell)
         in_y = int((pnt.y - self.y_min) / self.size_cell)
         return in_x, in_y
@@ -153,9 +153,18 @@ if __name__ == "__main__":
             fst_pnt.pre = nxt_pnt
 
     # geo_data_base.create_grid_shapefile()
-    inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[1].getFeatures()]
-    # for index_i, feature in enumerate inter_pnts:
-    #     pass
+    inter_pnt_list = [Point(feature.geometry().asPoint())for feature in input_layers[1].getFeatures()]
+    inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
+    for index_i, point_start in enumerate(inter_pnt_list[:-1]):
+        for index_j, point_end in enumerate(inter_pnt_list[index_i + 1:]):
+            # edge case - the two points are the same
+            if point_start == point_end:
+                continue
+            # find the cells ot the tested two line edge points
+
+
+        # find the cell of the tested two line edge points
+
     # for each point in the @input_in
     # create line for other points in the list
     """For standalone application"""
