@@ -14,12 +14,13 @@ class LineParameters:
 
 
 class PolygonPoint:
-    def __init__(self, pnt: list):
+    def __init__(self, id: int, pnt: list, ):
         """
         The PolygonPoint class object contains the current point (:param pnt)
         and the lines connecting it to the adjacent points
         in  the  polygon ( another two PolygonPoint point and line parameters)
         """
+        self.id = id
         self.pnt = Point(pnt[0], pnt[1])
         self.nxt = None
         self.pre = None
@@ -40,8 +41,8 @@ if __name__ == '__main__':
     print(my_polygon)
     new_list = []
     # Create two PolygonPoint objects from the the first two Points in the polygon
-    fst_pnt = PolygonPoint(my_polygon[0])
-    nxt_pnt = PolygonPoint(my_polygon[1])
+    fst_pnt = PolygonPoint(0, my_polygon[0])
+    nxt_pnt = PolygonPoint(1, my_polygon[1])
     # update the next point of the first PolygonPoint object and put it the new database
     fst_pnt.nxt = nxt_pnt
     new_list.append(fst_pnt)
@@ -50,7 +51,7 @@ if __name__ == '__main__':
         # this loop creates new PolygonPoint object (the next index) and update all rest
         # points of the current  PolygonPoint object (the current index)
         # than put it into the database and update the temp variables for the next loop
-        new_pnt = PolygonPoint(my_polygon[i + 1])
+        new_pnt = PolygonPoint(i , my_polygon[i + 1])
         nxt_pnt.nxt = new_pnt
         nxt_pnt.pre = pre_pnt
         new_list.append(nxt_pnt)
