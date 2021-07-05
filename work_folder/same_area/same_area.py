@@ -35,12 +35,17 @@ class SameAreaCell:
         self.y_min = min(points_list, key=itemgetter(1))[1]
         self.x_max = max(points_list, key=itemgetter(0))[0]
         self.y_max = max(points_list, key=itemgetter(1))[1]
-
+        self.num_of_pnt = 0
         n_y = int((self.y_max - self.y_min) / self.size_cell) + 1
         n_x = int((self.x_max - self.x_min) / self.size_cell) + 1
         self.data_set = [
             [Cell(self.x_min + ii * self.size_cell, self.y_min + j * self.size_cell, self.size_cell, ii, j) for ii in
              range(n_x)] for j in range(n_y)]
+
+    # this method increments the number of points in our database by 1
+    def increment_num_pnts(self):
+        self.num_of_pnt += 1
+        return self.num_of_pnt
 
     def add_point(self, pnt: PolygonPoint):
         in_x = int((pnt.pnt.x - self.x_min) / self.size_cell)
@@ -121,7 +126,8 @@ if __name__ == "__main__":
     # Build SameAreaCell object
     geo_data_base = SameAreaCell(rectangle_points, 100)
 
-    # Print the points polygon
+    # Index that is point ID
+    index_id = 0
     for feature in input_layers[0].getFeatures():
         feature_list = feature.geometry().asJson()
         attribute = feature.attributes()[0]
@@ -129,8 +135,8 @@ if __name__ == "__main__":
         for part in json1_data:
             # Create two PolygonPoint objects from the the first two Points in the polygon
             sub_part = part[0]
-            fst_pnt = PolygonPoint(sub_part[0])
-            nxt_pnt = PolygonPoint(sub_part[1])
+            fst_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[0])
+            nxt_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[1])
             # update the next point of the first PolygonPoint object and put it the new database
             fst_pnt.nxt = nxt_pnt
             geo_data_base.add_point(fst_pnt)
@@ -139,7 +145,7 @@ if __name__ == "__main__":
                 # this loop creates new PolygonPoint object (the next index) and update all rest
                 # points of the current  PolygonPoint object (the current index)
                 # than put it into the database and update the temp variables for the next loop
-                new_pnt = PolygonPoint(sub_part[i + 1])
+                new_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[i + 1])
                 nxt_pnt.nxt = new_pnt
                 nxt_pnt.pre = pre_pnt
                 geo_data_base.add_point(nxt_pnt)
@@ -153,7 +159,7 @@ if __name__ == "__main__":
             fst_pnt.pre = nxt_pnt
 
     # geo_data_base.create_grid_shapefile()
-    inter_pnt_list = [Point(feature.geometry().asPoint())for feature in input_layers[1].getFeatures()]
+    inter_pnt_list = [Point(feature.geometry().asPoint()) for feature in input_layers[1].getFeatures()]
     inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
     for index_i, point_start in enumerate(inter_pnt_list[:-1]):
         for index_j, point_end in enumerate(inter_pnt_list[index_i + 1:]):
@@ -161,7 +167,6 @@ if __name__ == "__main__":
             if point_start == point_end:
                 continue
             # find the cells ot the tested two line edge points
-
 
         # find the cell of the tested two line edge points
 
