@@ -10,7 +10,6 @@ class SymNDArray(numpy.ndarray):
     automatically does arr[j,i] = value, so that array
     updates remain symmetrical.
     """
-
     def __setitem__(self, index, value):
         super(SymNDArray, self).__setitem__(index, value)
         super(SymNDArray, self).__setitem__((index[1], index[0]), value)

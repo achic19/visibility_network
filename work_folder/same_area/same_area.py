@@ -10,6 +10,7 @@ from qgis.PyQt.QtCore import QVariant
 from qgis.core import *
 from shapely.geometry import Point
 from PolygonPoint import PolygonPoint, LineParameters
+from sym_matrix import *
 
 sys.path.append(r'C:\Program Files\QGIS 3.0\apps\qgis\python\plugins')
 
@@ -125,9 +126,10 @@ if __name__ == "__main__":
 
     # Build SameAreaCell object
     geo_data_base = SameAreaCell(rectangle_points, 100)
-
+    a = symarray(numpy.zeros((3, 3)))
     # Index that is point ID
     index_id = 0
+
     for feature in input_layers[0].getFeatures():
         feature_list = feature.geometry().asJson()
         attribute = feature.attributes()[0]
@@ -159,6 +161,9 @@ if __name__ == "__main__":
             fst_pnt.pre = nxt_pnt
 
     # geo_data_base.create_grid_shapefile()
+    # calculate sight line
+    # s_matrix is a  symarray which allow me to update line both directions
+    sys_matrix = symarray(numpy.zeros((index_id, index_id)))
     inter_pnt_list = [Point(feature.geometry().asPoint()) for feature in input_layers[1].getFeatures()]
     inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
     for index_i, point_start in enumerate(inter_pnt_list[:-1]):
