@@ -92,7 +92,18 @@ class SameAreaCell:
         # Update fields for the vector grid
         vector_grid.updateFields()
 
-    # This code is contributed by ash264
+    @staticmethod
+    def loop_over_horizontal_vertical_cells(temp_cell: tuple, cell_per: tuple, dir_ind: int):
+        """
+        loop over cells horizontally or vertically (based on :param dir_ind) from :param temp_cell to :param cell_per
+        :param dir_ind:
+        :param temp_cell:
+        :param cell_per:
+        :return:
+        """
+        while not temp_cell == cell_per:
+            temp_cell[dir_ind] += 1
+            # ToDo calculate intersections(temp_cell)
 
 
 def upload_new_layer(path, name):
@@ -163,17 +174,32 @@ if __name__ == "__main__":
     # geo_data_base.create_grid_shapefile()
     # calculate sight line
     # s_matrix is a  symarray which allow me to update line both directions
-    sys_matrix = symarray(numpy.zeros((index_id, index_id)))
     inter_pnt_list = [Point(feature.geometry().asPoint()) for feature in input_layers[1].getFeatures()]
+    # save the cell location of each point in another array
     inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
     for index_i, point_start in enumerate(inter_pnt_list[:-1]):
+        sys_matrix = symarray(numpy.zeros((index_id, index_id)))
         for index_j, point_end in enumerate(inter_pnt_list[index_i + 1:]):
-            # edge case - the two points are the same
+            # if the two points are the same
             if point_start == point_end:
                 continue
-            # find the cells ot the tested two line edge points
+            # calculate intersections in the first cell
+            cell_first = inter_cell_list[index_i]
+            cell_end = inter_cell_list[index_j]
+            # ToDo calculate intersections(cell_first)
+            # if the two points in same cell
+            if cell_first == cell_end:
+                continue
+            # if the points have the same index horizontally or vertically
+            if cell_first[0] == cell_end[0]:
+                SameAreaCell.loop_over_horizontal_vertical_cells(cell_first, cell_end, 0)
+                continue
+            if cell_first[1] == cell_end[1]:
+                SameAreaCell.loop_over_horizontal_vertical_cells(cell_first, cell_end, 1)
+                continue
+            azi_line = point_start.azimuth()
 
-        # find the cell of the tested two line edge points
+
 
     # for each point in the @input_in
     # create line for other points in the list
