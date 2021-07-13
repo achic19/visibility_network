@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import math
 from operator import itemgetter
 
 from PyQt5.QtGui import *
@@ -11,7 +12,7 @@ from qgis.core import *
 from shapely.geometry import Point
 from PolygonPoint import PolygonPoint, LineParameters
 from sym_matrix import *
-
+from is_intersect import *
 sys.path.append(r'C:\Program Files\QGIS 3.0\apps\qgis\python\plugins')
 
 
@@ -42,6 +43,13 @@ class SameAreaCell:
         self.data_set = [
             [Cell(self.x_min + ii * self.size_cell, self.y_min + j * self.size_cell, self.size_cell, ii, j) for ii in
              range(n_x)] for j in range(n_y)]
+
+    def __getitem__(self, inds: tuple):
+        """
+        :param inds: tuple of indices
+        :return: a cell from the dataset based on the indices
+        """
+        return self.data_set[inds[0]][inds[1]]
 
     # this method increments the number of points in our database by 1
     def increment_num_pnts(self):
@@ -92,18 +100,76 @@ class SameAreaCell:
         # Update fields for the vector grid
         vector_grid.updateFields()
 
-    @staticmethod
-    def loop_over_horizontal_vertical_cells(temp_cell: tuple, cell_per: tuple, dir_ind: int):
+
+class FindSightLine:
+    def __init__(self, start_line: Point, end_line: Point, cur_cell: tuple, end_cell: tuple, data_base: SameAreaCell,
+                 num_of_pnts: int):
         """
-        loop over cells horizontally or vertically (based on :param dir_ind) from :param temp_cell to :param cell_per
+        It checks and builds a sight line between two points
+        :param start_line:
+        :param end_line:
+        :param cur_cell:
+        :param end_cell:
+        :param data_base:
+        :param num_of_pnts:
+        """
+        self.__start_line = start_line
+        self.__end_line = end_line
+        self.__cur_cell = cur_cell
+        self.__end_cell = end_cell
+        self.__data_base = data_base
+        # s_matrix is a  symarray which allow me to update line both directions
+        self.__sys_matrix = symarray(numpy.zeros((num_of_pnts, num_of_pnts)))
+        self.__azi_line = azimuth_calculator(self.__start_line, self.__end_line)
+
+        # A pivot variable is a dictionary.
+        # {pointer to the one of the cell corners:
+        # [optional next cell: the examined azimuth is smaller/same/larger]}
+        if 0 < self.__azi_line < 90:
+            self.__pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
+        elif 90 < self.__azi_line < 180:
+            self.__pivot = {'SE': [(1, 0), (1, -1), (0, -1)]}
+        elif 180 < self.__azi_line < 270:
+            self.__pivot = {'SW': [((0, -1), (-1, -1), (-1, 0))]}
+        else:
+            self.__pivot = {'NW': [(-1, 0), (-1, 1), (0, 1)]}
+
+    def loop_over_horizontal_vertical_cells(self, dir_ind: int):
+        """
+        Loop over cells horizontally or vertically (based on  @dir_ind) from first cell to destination cell
         :param dir_ind:
-        :param temp_cell:
-        :param cell_per:
         :return:
         """
-        while not temp_cell == cell_per:
-            temp_cell[dir_ind] += 1
+        while not self.__cur_cell == self.__end_cell:
+            self.__cur_cell[dir_ind] += 1
             # ToDo calculate intersections(temp_cell)
+
+    def loop_over_cell_with_pivot(self):
+        """
+        It loops over points in the cells from the cell of the current point to the destination cell through the cells
+        that are selected based on the direction in the pivot dictionary and the line azimuth.
+        :return:
+        """
+        key = list(self.__pivot.keys())[0]
+        pivot_point = self.__data_base[self.__cur_cell].extent[key]
+        ex_az = azimuth_calculator(self.__start_line, Point(pivot_point))
+        pivot_list = list(self.__pivot.values())
+        if ex_az < self.__azi_line:
+            self.__cur_cell += pivot_list[0]
+        elif ex_az == self.__azi_line:
+            self.__cur_cell += pivot_list[1]
+        else:
+            self.__cur_cell += pivot_list[2]
+        # calculate_intersection
+        if self.__cur_cell == self.__end_cell:
+            return
+        else:
+            self.loop_over_cell_with_pivot()
+
+    def calculate_intersections(self):
+        cur_cell = self.__data_base[self.__cur_cell]
+        # for pnt in cur_cell:
+
 
 
 def upload_new_layer(path, name):
@@ -115,6 +181,19 @@ def upload_new_layer(path, name):
         layer_name,
         provider_name)
     return layer
+
+
+def azimuth_calculator(pnt1: Point, pnt2: Point) -> float:
+    """
+    Calculate and return azimuth by two points
+    :param pnt1:
+    :param pnt2:
+    :return:
+    """
+    azimuth = math.degrees(math.atan2(pnt2.x - pnt1.x, pnt2.y - pnt1.y))
+    if azimuth < 0:
+        azimuth += 360
+    return azimuth
 
 
 if __name__ == "__main__":
@@ -148,6 +227,7 @@ if __name__ == "__main__":
         for part in json1_data:
             # Create two PolygonPoint objects from the the first two Points in the polygon
             sub_part = part[0]
+            index_id += len(sub_part)
             fst_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[0])
             nxt_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[1])
             # update the next point of the first PolygonPoint object and put it the new database
@@ -173,12 +253,11 @@ if __name__ == "__main__":
 
     # geo_data_base.create_grid_shapefile()
     # calculate sight line
-    # s_matrix is a  symarray which allow me to update line both directions
+
     inter_pnt_list = [Point(feature.geometry().asPoint()) for feature in input_layers[1].getFeatures()]
     # save the cell location of each point in another array
     inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
     for index_i, point_start in enumerate(inter_pnt_list[:-1]):
-        sys_matrix = symarray(numpy.zeros((index_id, index_id)))
         for index_j, point_end in enumerate(inter_pnt_list[index_i + 1:]):
             # if the two points are the same
             if point_start == point_end:
@@ -186,22 +265,22 @@ if __name__ == "__main__":
             # calculate intersections in the first cell
             cell_first = inter_cell_list[index_i]
             cell_end = inter_cell_list[index_j]
-            # ToDo calculate intersections(cell_first)
+            sight_line_obj = FindSightLine(point_start, point_end, cell_first, cell_end, geo_data_base, index_id)
+            geo_data_base.calculate_intersections(cur_cell=geo_data_base[cell_first], start_pnt=point_start,
+                                                  end_pnt=point_end)
             # if the two points in same cell
             if cell_first == cell_end:
                 continue
             # if the points have the same index horizontally or vertically
             if cell_first[0] == cell_end[0]:
-                SameAreaCell.loop_over_horizontal_vertical_cells(cell_first, cell_end, 0)
+                geo_data_base.loop_over_horizontal_vertical_cells(cell_first, cell_end, 0)
                 continue
             if cell_first[1] == cell_end[1]:
-                SameAreaCell.loop_over_horizontal_vertical_cells(cell_first, cell_end, 1)
+                geo_data_base.loop_over_horizontal_vertical_cells(cell_first, cell_end, 1)
                 continue
-            azi_line = point_start.azimuth()
 
+            # find cell
 
-
-    # for each point in the @input_in
     # create line for other points in the list
     """For standalone application"""
     # Exit applications
