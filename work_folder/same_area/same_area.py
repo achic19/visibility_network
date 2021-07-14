@@ -24,6 +24,9 @@ class Cell:
         self.i_e = i_x
         self.i_n = i_y
 
+    def __iter__(self):
+        return iter(self.points)
+
 
 class SameAreaCell:
     def __init__(self, points_list, size):
@@ -168,6 +171,8 @@ class FindSightLine:
 
     def calculate_intersections(self):
         cur_cell = self.__data_base[self.__cur_cell]
+        for point in cur_cell:
+            gg= 0
         # for pnt in cur_cell:
 
 
@@ -266,17 +271,16 @@ if __name__ == "__main__":
             cell_first = inter_cell_list[index_i]
             cell_end = inter_cell_list[index_j]
             sight_line_obj = FindSightLine(point_start, point_end, cell_first, cell_end, geo_data_base, index_id)
-            geo_data_base.calculate_intersections(cur_cell=geo_data_base[cell_first], start_pnt=point_start,
-                                                  end_pnt=point_end)
+            sight_line_obj.calculate_intersections()
             # if the two points in same cell
             if cell_first == cell_end:
                 continue
             # if the points have the same index horizontally or vertically
             if cell_first[0] == cell_end[0]:
-                geo_data_base.loop_over_horizontal_vertical_cells(cell_first, cell_end, 0)
+                sight_line_obj.loop_over_horizontal_vertical_cells()
                 continue
             if cell_first[1] == cell_end[1]:
-                geo_data_base.loop_over_horizontal_vertical_cells(cell_first, cell_end, 1)
+                sight_line_obj.loop_over_horizontal_vertical_cells()
                 continue
 
             # find cell
