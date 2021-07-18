@@ -274,7 +274,7 @@ if __name__ == "__main__":
             sight_line_obj.calculate_intersections()
             # if the two points in same cell
             if cell_first == cell_end:
-                continue
+                # ToDo create new line
             # if the points have the same index horizontally or vertically
             if cell_first[0] == cell_end[0]:
                 sight_line_obj.loop_over_horizontal_vertical_cells()
