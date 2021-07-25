@@ -13,6 +13,7 @@ from shapely.geometry import Point
 from PolygonPoint import PolygonPoint, LineParameters
 from sym_matrix import *
 from is_intersect import *
+
 sys.path.append(r'C:\Program Files\QGIS 3.0\apps\qgis\python\plugins')
 
 
@@ -121,21 +122,36 @@ class FindSightLine:
         self.__cur_cell = cur_cell
         self.__end_cell = end_cell
         self.__data_base = data_base
+        self.is_sight_line = True
         # s_matrix is a  symarray which allow me to update line both directions
         self.__sys_matrix = symarray(numpy.zeros((num_of_pnts, num_of_pnts)))
         self.__azi_line = azimuth_calculator(self.__start_line, self.__end_line)
-
-        # A pivot variable is a dictionary.
-        # {pointer to the one of the cell corners:
-        # [optional next cell: the examined azimuth is smaller/same/larger]}
-        if 0 < self.__azi_line < 90:
-            self.__pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
-        elif 90 < self.__azi_line < 180:
-            self.__pivot = {'SE': [(1, 0), (1, -1), (0, -1)]}
-        elif 180 < self.__azi_line < 270:
-            self.__pivot = {'SW': [((0, -1), (-1, -1), (-1, 0))]}
+        # If the current line intersects polygon lines, this line is not sight line
+        if self.calculate_intersections():
+            self.is_sight_line = False
+        elif cell_first == cell_end:
+            pass
+        # if the points have the same index horizontally or vertically
+        elif cell_first[0] == cell_end[0]:
+            if self.loop_over_horizontal_vertical_cells(0):
+                self.is_sight_line = False
+        elif cell_first[1] == cell_end[1]:
+            if self.loop_over_horizontal_vertical_cells(1):
+                self.is_sight_line = False
         else:
-            self.__pivot = {'NW': [(-1, 0), (-1, 1), (0, 1)]}
+            # A pivot variable is a dictionary.
+            # {pointer to the one of the cell corners:
+            # [optional next cell: the examined azimuth is smaller/same/larger]}
+            if 0 < self.__azi_line < 90:
+                self.__pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
+            elif 90 < self.__azi_line < 180:
+                self.__pivot = {'SE': [(1, 0), (1, -1), (0, -1)]}
+            elif 180 < self.__azi_line < 270:
+                self.__pivot = {'SW': [((0, -1), (-1, -1), (-1, 0))]}
+            else:
+                self.__pivot = {'NW': [(-1, 0), (-1, 1), (0, 1)]}
+            if self.loop_over_cell_with_pivot():
+                self.is_sight_line = False
 
     def loop_over_horizontal_vertical_cells(self, dir_ind: int):
         """
@@ -145,7 +161,8 @@ class FindSightLine:
         """
         while not self.__cur_cell == self.__end_cell:
             self.__cur_cell[dir_ind] += 1
-            # ToDo calculate intersections(temp_cell)
+            # ToDo calculate intersections(temp_cell) if
+        return
 
     def loop_over_cell_with_pivot(self):
         """
@@ -172,9 +189,10 @@ class FindSightLine:
     def calculate_intersections(self):
         cur_cell = self.__data_base[self.__cur_cell]
         for point in cur_cell:
-            gg= 0
+            pass
+            # if self.__sys_matrix[point.id,point.]
         # for pnt in cur_cell:
-
+        return False
 
 
 def upload_new_layer(path, name):
@@ -258,32 +276,34 @@ if __name__ == "__main__":
 
     # geo_data_base.create_grid_shapefile()
     # calculate sight line
-
+    # First, upload the gis file to remove old sight lines and make it ready for new sight lines
+    path = "sight_line.shp"
+    vector_grid = QgsVectorLayer(path, "sight_line", "ogr")
+    vector_grid.dataProvider().truncate()
+    data_provider = vector_grid.dataProvider()
+    # In this list all the new features (sight lines) will be stored
+    feats = []
     inter_pnt_list = [Point(feature.geometry().asPoint()) for feature in input_layers[1].getFeatures()]
     # save the cell location of each point in another array
     inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
     for index_i, point_start in enumerate(inter_pnt_list[:-1]):
+        cell_first = inter_cell_list[index_i]
         for index_j, point_end in enumerate(inter_pnt_list[index_i + 1:]):
             # if the two points are the same
             if point_start == point_end:
                 continue
-            # calculate intersections in the first cell
-            cell_first = inter_cell_list[index_i]
-            cell_end = inter_cell_list[index_j]
-            sight_line_obj = FindSightLine(point_start, point_end, cell_first, cell_end, geo_data_base, index_id)
-            sight_line_obj.calculate_intersections()
-            # if the two points in same cell
-            if cell_first == cell_end:
-                # ToDo create new line
-            # if the points have the same index horizontally or vertically
-            if cell_first[0] == cell_end[0]:
-                sight_line_obj.loop_over_horizontal_vertical_cells()
-                continue
-            if cell_first[1] == cell_end[1]:
-                sight_line_obj.loop_over_horizontal_vertical_cells()
-                continue
+            # Call to FindSightLine class to check if sight line is exist
 
-            # find cell
+            cell_end = inter_cell_list[index_j]
+            if FindSightLine(point_start, point_end, cell_first, cell_end, geo_data_base, index_id).is_sight_line:
+                feat = QgsFeature()
+                feat.setGeometry(
+                    QgsGeometry().fromPolylineXY([QgsPointXY(point_start.x, point_start.y), QgsPointXY(point_end.x,
+                                                                                                       point_end.y)]))
+                feat.setAttributes([1, 2, 3])  # Set attributes for the current id
+                feats.append(feat)
+
+    data_provider.addFeatures(feats)
 
     # create line for other points in the list
     """For standalone application"""

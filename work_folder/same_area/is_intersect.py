@@ -73,35 +73,36 @@ def doIntersect(p1, q1, p2, q2):
     return False
 
 
-# Driver program to test above functions:
-p1 = Point(1, 1)
-q1 = Point(10, 1)
-p2 = Point(1, 2)
-q2 = Point(10, 2)
+if __name__ == '__main__':
+    # Driver program to test above functions:
+    p1 = Point(1, 1)
+    q1 = Point(10, 1)
+    p2 = Point(1, 2)
+    q2 = Point(10, 2)
 
-if doIntersect(p1, q1, p2, q2):
-    print("Yes")
-else:
-    print("No")
+    if doIntersect(p1, q1, p2, q2):
+        print("Yes")
+    else:
+        print("No")
 
-p1 = Point(10, 0)
-q1 = Point(0, 10)
-p2 = Point(0, 0)
-q2 = Point(10, 10)
+    p1 = Point(10, 0)
+    q1 = Point(0, 10)
+    p2 = Point(0, 0)
+    q2 = Point(10, 10)
 
-if doIntersect(p1, q1, p2, q2):
-    print("Yes")
-else:
-    print("No")
+    if doIntersect(p1, q1, p2, q2):
+        print("Yes")
+    else:
+        print("No")
 
-p1 = Point(-5, -5)
-q1 = Point(0, 0)
-p2 = Point(1, 1)
-q2 = Point(10, 10)
+    p1 = Point(-5, -5)
+    q1 = Point(0, 0)
+    p2 = Point(1, 1)
+    q2 = Point(10, 10)
 
-if doIntersect(p1, q1, p2, q2):
-    print("Yes")
-else:
-    print("No")
+    if doIntersect(p1, q1, p2, q2):
+        print("Yes")
+    else:
+        print("No")
 
-# This code is contributed by Ansh Riyal
+    # This code is contributed by Ansh Riyal
