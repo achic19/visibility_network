@@ -45,8 +45,8 @@ class SameAreaCell:
         n_y = int((self.y_max - self.y_min) / self.size_cell) + 1
         n_x = int((self.x_max - self.x_min) / self.size_cell) + 1
         self.data_set = [
-            [Cell(self.x_min + ii * self.size_cell, self.y_min + j * self.size_cell, self.size_cell, ii, j) for ii in
-             range(n_x)] for j in range(n_y)]
+            [Cell(self.x_min + ii * self.size_cell, self.y_min + j * self.size_cell, self.size_cell, ii, j) for j in
+             range(n_y)] for ii in range(n_x)]
 
     def __getitem__(self, inds: tuple):
         """
@@ -63,7 +63,7 @@ class SameAreaCell:
     def add_point(self, pnt: PolygonPoint):
         in_x = int((pnt.pnt.x - self.x_min) / self.size_cell)
         in_y = int((pnt.pnt.y - self.y_min) / self.size_cell)
-        self.data_set[in_y][in_x].points.append(pnt)
+        self.data_set[in_x][in_y].points.append(pnt)
 
     def find_cell(self, pnt: Point):
         in_x = int((pnt.x - self.x_min) / self.size_cell)
@@ -117,15 +117,16 @@ class FindSightLine:
         :param data_base:
         :param num_of_pnts:
         """
-        self.__start_line = start_line
-        self.__end_line = end_line
-        self.__cur_cell = cur_cell
-        self.__end_cell = end_cell
-        self.__data_base = data_base
+        # ToDo - tart_line  end_line cur_cell end_cell data_base sys_matrix azi_line should be private
+        self.start_line = start_line
+        self.end_line = end_line
+        self.cur_cell = cur_cell
+        self.end_cell = end_cell
+        self.data_base = data_base
         self.is_sight_line = True
         # s_matrix is a  symarray which allow me to update line both directions
-        self.__sys_matrix = symarray(numpy.zeros((num_of_pnts, num_of_pnts)))
-        self.__azi_line = azimuth_calculator(self.__start_line, self.__end_line)
+        self.sys_matrix = symarray(numpy.zeros((num_of_pnts, num_of_pnts)))
+        self.azi_line = azimuth_calculator(self.start_line, self.end_line)
         # If the current line intersects polygon lines, this line is not sight line
         if self.calculate_intersections():
             self.is_sight_line = False
@@ -142,14 +143,15 @@ class FindSightLine:
             # A pivot variable is a dictionary.
             # {pointer to the one of the cell corners:
             # [optional next cell: the examined azimuth is smaller/same/larger]}
-            if 0 < self.__azi_line < 90:
-                self.__pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
-            elif 90 < self.__azi_line < 180:
-                self.__pivot = {'SE': [(1, 0), (1, -1), (0, -1)]}
-            elif 180 < self.__azi_line < 270:
-                self.__pivot = {'SW': [((0, -1), (-1, -1), (-1, 0))]}
+            if 0 < self.azi_line < 90:
+                self.pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
+            elif 90 < self.azi_line < 180:
+                self.pivot = {'SE': [(1, 0), (1, -1), (0, -1)]}
+            elif 180 < self.azi_line < 270:
+                self.pivot = {'SW': [((0, -1), (-1, -1), (-1, 0))]}
             else:
-                self.__pivot = {'NW': [(-1, 0), (-1, 1), (0, 1)]}
+                self.pivot = {'NW': [(-1, 0), (-1, 1), (0, 1)]}
+            self.pivot_list = list(self.pivot.values())
             if self.loop_over_cell_with_pivot():
                 self.is_sight_line = False
 
@@ -159,8 +161,8 @@ class FindSightLine:
         :param dir_ind:
         :return:
         """
-        while not self.__cur_cell == self.__end_cell:
-            self.__cur_cell[dir_ind] += 1
+        while not self.cur_cell == self.end_cell:
+            self.cur_cell[dir_ind] += 1
             # ToDo calculate intersections(temp_cell) if
         return
 
@@ -170,24 +172,24 @@ class FindSightLine:
         that are selected based on the direction in the pivot dictionary and the line azimuth.
         :return:
         """
-        key = list(self.__pivot.keys())[0]
-        pivot_point = self.__data_base[self.__cur_cell].extent[key]
-        ex_az = azimuth_calculator(self.__start_line, Point(pivot_point))
-        pivot_list = list(self.__pivot.values())
-        if ex_az < self.__azi_line:
-            self.__cur_cell += pivot_list[0]
-        elif ex_az == self.__azi_line:
-            self.__cur_cell += pivot_list[1]
+        key = list(self.pivot.keys())[0]
+        pivot_point = self.data_base[self.cur_cell].extent[key]
+        ex_az = azimuth_calculator(self.start_line, Point(pivot_point))
+
+        if ex_az < self.azi_line:
+            self.cur_cell += self.pivot_list[0][0]
+        elif ex_az == self.azi_line:
+            self.cur_cell += self.pivot_list[0][1]
         else:
-            self.__cur_cell += pivot_list[2]
+            self.cur_cell += self.pivot_list[0][2]
         # calculate_intersection
-        if self.__cur_cell == self.__end_cell:
+        if self.cur_cell == self.end_cell:
             return
         else:
             self.loop_over_cell_with_pivot()
 
     def calculate_intersections(self):
-        cur_cell = self.__data_base[self.__cur_cell]
+        cur_cell = self.data_base[self.cur_cell]
         for point in cur_cell:
             pass
             # if self.__sys_matrix[point.id,point.]
@@ -288,7 +290,9 @@ if __name__ == "__main__":
     inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
     for index_i, point_start in enumerate(inter_pnt_list[:-1]):
         cell_first = inter_cell_list[index_i]
-        for index_j, point_end in enumerate(inter_pnt_list[index_i + 1:]):
+        index_j = index_i
+        for point_end in inter_pnt_list[index_i + 1:]:
+            index_j += 1
             # if the two points are the same
             if point_start == point_end:
                 continue
