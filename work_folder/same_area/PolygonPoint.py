@@ -13,15 +13,15 @@ class LineParameters:
         return "the slope is: {:.2f}, intersect is: {:.2f}".format(self.slope, self.intersect)
 
 
-class PolygonPoint:
-    def __init__(self, id: int, pnt: list, ):
+class PolygonPoint(Point):
+    def __init__(self, id: int, pnt: list):
         """
         The PolygonPoint class object contains the current point (:param pnt)
         and the lines connecting it to the adjacent points
         in  the  polygon ( another two PolygonPoint point and line parameters)
         """
         self.id = id
-        self.pnt = Point(pnt[0], pnt[1])
+        Point.__init__(pnt[0], pnt[1])
         self.nxt = None
         self.pre = None
 
@@ -30,10 +30,10 @@ class PolygonPoint:
 
     def __repr__(self):
         if self.nxt is not None and self.pre is not None:
-            return "point {}: previous  point is: {}, next point is:{}\n".format(self.pnt, self.pre.pnt,
-                                                                                 self.nxt.pnt)
+            return "{}:point {}: previous  point is: {}, next point is:{}\n".format(self.id, self.xy, self.pre.pnt,
+                                                                                    self.nxt.pnt)
         else:
-            return "point {}\n".format(self.pnt)
+            return "{}:point {}\n".format(self.id, self.xy)
 
 
 if __name__ == '__main__':
@@ -51,7 +51,7 @@ if __name__ == '__main__':
         # this loop creates new PolygonPoint object (the next index) and update all rest
         # points of the current  PolygonPoint object (the current index)
         # than put it into the database and update the temp variables for the next loop
-        new_pnt = PolygonPoint(i , my_polygon[i + 1])
+        new_pnt = PolygonPoint(i, my_polygon[i + 1])
         nxt_pnt.nxt = new_pnt
         nxt_pnt.pre = pre_pnt
         new_list.append(nxt_pnt)
@@ -65,14 +65,14 @@ if __name__ == '__main__':
     fst_pnt.pre = nxt_pnt
     print(new_list)
 
-    for temp_pnt in new_list:
-        # Update the line parameters for the current point as well as the connected points
-        if temp_pnt.pre_line_params is None:
-            temp_pnt.pre_line_params = LineParameters(temp_pnt.pnt, temp_pnt.pre.pnt)
-            temp_pnt.pre.nxt_line_params = temp_pnt.pre_line_params
-        if temp_pnt.nxt_line_params is None:
-            temp_pnt.nxt_line_params = LineParameters(temp_pnt.pnt, temp_pnt.nxt.pnt)
-            temp_pnt.nxt.pre_line_params = temp_pnt.nxt_line_params
+    # for temp_pnt in new_list:
+    #     # Update the line parameters for the current point as well as the connected points
+    #     if temp_pnt.pre_line_params is None:
+    #         temp_pnt.pre_line_params = LineParameters(temp_pnt.pnt, temp_pnt.pre.pnt)
+    #         temp_pnt.pre.nxt_line_params = temp_pnt.pre_line_params
+    #     if temp_pnt.nxt_line_params is None:
+    #         temp_pnt.nxt_line_params = LineParameters(temp_pnt.pnt, temp_pnt.nxt.pnt)
+    #         temp_pnt.nxt.pre_line_params = temp_pnt.nxt_line_params
     for temp_pnt in new_list:
         print(temp_pnt.pre_line_params)
         print(temp_pnt.nxt_line_params)

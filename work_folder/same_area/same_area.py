@@ -48,7 +48,7 @@ class SameAreaCell:
             [Cell(self.x_min + ii * self.size_cell, self.y_min + j * self.size_cell, self.size_cell, ii, j) for j in
              range(n_y)] for ii in range(n_x)]
 
-    def __getitem__(self, inds: tuple):
+    def __getitem__(self, inds: list):
         """
         :param inds: tuple of indices
         :return: a cell from the dataset based on the indices
@@ -61,14 +61,14 @@ class SameAreaCell:
         return self.num_of_pnt
 
     def add_point(self, pnt: PolygonPoint):
-        in_x = int((pnt.pnt.x - self.x_min) / self.size_cell)
-        in_y = int((pnt.pnt.y - self.y_min) / self.size_cell)
+        in_x = int((pnt.x - self.x_min) / self.size_cell)
+        in_y = int((pnt.y - self.y_min) / self.size_cell)
         self.data_set[in_x][in_y].points.append(pnt)
 
     def find_cell(self, pnt: Point):
         in_x = int((pnt.x - self.x_min) / self.size_cell)
         in_y = int((pnt.y - self.y_min) / self.size_cell)
-        return in_x, in_y
+        return [in_x, in_y]
 
     def create_grid_shapefile(self):
         # Create the grid layer
@@ -106,7 +106,7 @@ class SameAreaCell:
 
 
 class FindSightLine:
-    def __init__(self, start_line: Point, end_line: Point, cur_cell: tuple, end_cell: tuple, data_base: SameAreaCell,
+    def __init__(self, start_line: Point, end_line: Point, cur_cell: list, end_cell: list, data_base: SameAreaCell,
                  num_of_pnts: int):
         """
         It checks and builds a sight line between two points
@@ -177,16 +177,29 @@ class FindSightLine:
         ex_az = azimuth_calculator(self.start_line, Point(pivot_point))
 
         if ex_az < self.azi_line:
-            self.cur_cell += self.pivot_list[0][0]
+            self.find_next_cell(self.pivot_list[0][2])
+
         elif ex_az == self.azi_line:
-            self.cur_cell += self.pivot_list[0][1]
+            self.find_next_cell(self.pivot_list[0][1])
         else:
-            self.cur_cell += self.pivot_list[0][2]
+            self.find_next_cell(self.pivot_list[0][0])
         # calculate_intersection
+        if self.calculate_intersections():
+            return False
+        # the next step (if the two cells are not the same check the next cell)
         if self.cur_cell == self.end_cell:
             return
         else:
             self.loop_over_cell_with_pivot()
+
+    def find_next_cell(self, values: tuple):
+        """
+        find the next cell according to the specified values
+        :param values: it added to the current cell to find the next cell
+        :return:
+        """
+        self.cur_cell[0] += values[0]
+        self.cur_cell[1] += values[1]
 
     def calculate_intersections(self):
         cur_cell = self.data_base[self.cur_cell]
@@ -195,6 +208,18 @@ class FindSightLine:
             # if self.__sys_matrix[point.id,point.]
         # for pnt in cur_cell:
         return False
+
+    def two_lines_intersection(self, pnt1: PolygonPoint, pnt2: PolygonPoint):
+        """
+        It checks if two lines intersect when it hasn't been checked before
+        :return:
+        """
+        if self.sys_matrix[pnt1.id, pnt2.id] == 0:
+            if doIntersect(self.start_line, self.end_line, pnt1, pnt2):
+                return True
+            else:
+                self.sys_matrix[pnt1.id, pnt2.id] = 1
+
 
 
 def upload_new_layer(path, name):
