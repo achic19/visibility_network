@@ -134,11 +134,11 @@ class FindSightLine:
             pass
         # if the points have the same index horizontally or vertically
         elif cell_first[0] == cell_end[0]:
-            if self.loop_over_horizontal_vertical_cells(0):
-                self.is_sight_line = False
+            self.loop_over_horizontal_vertical_cells(1)
+
         elif cell_first[1] == cell_end[1]:
-            if self.loop_over_horizontal_vertical_cells(1):
-                self.is_sight_line = False
+            self.loop_over_horizontal_vertical_cells(0)
+
         else:
             # A pivot variable is a dictionary.
             # {pointer to the one of the cell corners:
@@ -152,8 +152,11 @@ class FindSightLine:
             else:
                 self.pivot = {'NW': [(-1, 0), (-1, 1), (0, 1)]}
             self.pivot_list = list(self.pivot.values())
-            if self.loop_over_cell_with_pivot():
-                self.is_sight_line = False
+            try:
+                self.loop_over_cell_with_pivot()
+            except:
+                # ToDo - test why it out of the range
+                pass
 
     def loop_over_horizontal_vertical_cells(self, dir_ind: int):
         """
@@ -163,8 +166,9 @@ class FindSightLine:
         """
         while not self.cur_cell == self.end_cell:
             self.cur_cell[dir_ind] += 1
-            # ToDo calculate intersections(temp_cell) if
-        return
+            if self.calculate_intersections():
+                self.is_sight_line = False
+                break
 
     def loop_over_cell_with_pivot(self):
         """
@@ -185,7 +189,8 @@ class FindSightLine:
             self.find_next_cell(self.pivot_list[0][0])
         # calculate_intersection
         if self.calculate_intersections():
-            return False
+            self.is_sight_line = False
+            return
         # the next step (if the two cells are not the same check the next cell)
         if self.cur_cell == self.end_cell:
             return
@@ -202,11 +207,15 @@ class FindSightLine:
         self.cur_cell[1] += values[1]
 
     def calculate_intersections(self):
+        """
+        It goes over all the points in the current cell and search for intersection between each pair of points and the
+        optional sight line
+        :return:
+        """
         cur_cell = self.data_base[self.cur_cell]
         for point in cur_cell:
-            pass
-            # if self.__sys_matrix[point.id,point.]
-        # for pnt in cur_cell:
+            if self.two_lines_intersection(point, point.nxt) or self.two_lines_intersection(point, point.pre):
+                return True
         return False
 
     def two_lines_intersection(self, pnt1: PolygonPoint, pnt2: PolygonPoint):
@@ -219,7 +228,6 @@ class FindSightLine:
                 return True
             else:
                 self.sys_matrix[pnt1.id, pnt2.id] = 1
-
 
 
 def upload_new_layer(path, name):
@@ -333,6 +341,8 @@ if __name__ == "__main__":
                 feats.append(feat)
 
     data_provider.addFeatures(feats)
+    # Update fields for the vector grid
+    vector_grid.updateFields()
 
     # create line for other points in the list
     """For standalone application"""

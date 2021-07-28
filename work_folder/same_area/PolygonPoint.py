@@ -21,7 +21,7 @@ class PolygonPoint(Point):
         in  the  polygon ( another two PolygonPoint point and line parameters)
         """
         self.id = id
-        Point.__init__(pnt[0], pnt[1])
+        Point.__init__(self, pnt[0], pnt[1])
         self.nxt = None
         self.pre = None
 
@@ -30,8 +30,8 @@ class PolygonPoint(Point):
 
     def __repr__(self):
         if self.nxt is not None and self.pre is not None:
-            return "{}:point {}: previous  point is: {}, next point is:{}\n".format(self.id, self.xy, self.pre.pnt,
-                                                                                    self.nxt.pnt)
+            return "{}:point {}: previous  point is: {}, next point is:{}\n".format(self.id, self.xy, self.pre.xy,
+                                                                                    self.nxt.xy)
         else:
             return "{}:point {}\n".format(self.id, self.xy)
 
