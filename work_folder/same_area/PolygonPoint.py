@@ -1,39 +1,17 @@
 from shapely.geometry import Point
 
 
-class LineParameters:
-    def __init__(self, p1: Point, p2: Point):
-        """
-        It creates slope object using two points coordinates (:param p1 and :param p2)
-        """
-        self.slope = (p2.y - p1.y) / (p2.x - p1.x)
-        self.intersect = p1.y - p1.x * self.slope
-
-    def __repr__(self):
-        return "the slope is: {:.2f}, intersect is: {:.2f}".format(self.slope, self.intersect)
-
-
 class PolygonPoint(Point):
-    def __init__(self, id: int, pnt: list):
+    def __init__(self, id_local: int, pnt: list):
         """
         The PolygonPoint class object contains the current point (:param pnt)
         and the lines connecting it to the adjacent points
-        in  the  polygon ( another two PolygonPoint point and line parameters)
+        in  the  polygon ( another two PolygonPoint point)
         """
-        self.id = id
+        self.id = id_local
         Point.__init__(self, pnt[0], pnt[1])
         self.nxt = None
         self.pre = None
-
-        self.nxt_line_params = None
-        self.pre_line_params = None
-
-    def __repr__(self):
-        if self.nxt is not None and self.pre is not None:
-            return "{}:point {}: previous  point is: {}, next point is:{}\n".format(self.id, self.xy, self.pre.xy,
-                                                                                    self.nxt.xy)
-        else:
-            return "{}:point {}\n".format(self.id, self.xy)
 
 
 if __name__ == '__main__':
@@ -65,15 +43,3 @@ if __name__ == '__main__':
     fst_pnt.pre = nxt_pnt
     print(new_list)
 
-    # for temp_pnt in new_list:
-    #     # Update the line parameters for the current point as well as the connected points
-    #     if temp_pnt.pre_line_params is None:
-    #         temp_pnt.pre_line_params = LineParameters(temp_pnt.pnt, temp_pnt.pre.pnt)
-    #         temp_pnt.pre.nxt_line_params = temp_pnt.pre_line_params
-    #     if temp_pnt.nxt_line_params is None:
-    #         temp_pnt.nxt_line_params = LineParameters(temp_pnt.pnt, temp_pnt.nxt.pnt)
-    #         temp_pnt.nxt.pre_line_params = temp_pnt.nxt_line_params
-    for temp_pnt in new_list:
-        print(temp_pnt.pre_line_params)
-        print(temp_pnt.nxt_line_params)
-        print(temp_pnt)

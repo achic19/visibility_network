@@ -10,7 +10,7 @@ from PyQt5.QtGui import *
 from qgis.PyQt.QtCore import QVariant
 from qgis.core import *
 from shapely.geometry import Point
-from PolygonPoint import PolygonPoint, LineParameters
+from PolygonPoint import PolygonPoint
 from sym_matrix import *
 from is_intersect import *
 
@@ -19,6 +19,13 @@ sys.path.append(r'C:\Program Files\QGIS 3.0\apps\qgis\python\plugins')
 
 class Cell:
     def __init__(self, x, y, spacing, i_x, i_y):
+        """
+        :param x:
+        :param y:
+        :param spacing: size cell
+        :param i_x: cell index in x direction
+        :param i_y: cell index in y direction
+        """
         self.points = []
         self.extent = {'SW': QgsPointXY(x, y), 'SE': QgsPointXY(x + spacing, y),
                        'NE': QgsPointXY(x + spacing, y + spacing), 'NW': QgsPointXY(x, y + spacing)}
@@ -134,11 +141,15 @@ class FindSightLine:
             pass
         # if the points have the same index horizontally or vertically
         elif cell_first[0] == cell_end[0]:
-            self.loop_over_horizontal_vertical_cells(1)
-
+            if cell_first[1] > cell_end[1]:
+                self.loop_over_horizontal_vertical_cells(1, -1)
+            else:
+                self.loop_over_horizontal_vertical_cells(1, 1)
         elif cell_first[1] == cell_end[1]:
-            self.loop_over_horizontal_vertical_cells(0)
-
+            if cell_first[0] > cell_end[0]:
+                self.loop_over_horizontal_vertical_cells(0, -1)
+            else:
+                self.loop_over_horizontal_vertical_cells(0, 1)
         else:
             # A pivot variable is a dictionary.
             # {pointer to the one of the cell corners:
@@ -148,24 +159,21 @@ class FindSightLine:
             elif 90 < self.azi_line < 180:
                 self.pivot = {'SE': [(1, 0), (1, -1), (0, -1)]}
             elif 180 < self.azi_line < 270:
-                self.pivot = {'SW': [((0, -1), (-1, -1), (-1, 0))]}
+                self.pivot = {'SW': [(0, -1), (-1, -1), (-1, 0)]}
             else:
                 self.pivot = {'NW': [(-1, 0), (-1, 1), (0, 1)]}
             self.pivot_list = list(self.pivot.values())
-            try:
-                self.loop_over_cell_with_pivot()
-            except:
-                # ToDo - test why it out of the range
-                pass
+            self.loop_over_cell_with_pivot()
 
-    def loop_over_horizontal_vertical_cells(self, dir_ind: int):
+    def loop_over_horizontal_vertical_cells(self, dir_ind: int, step: int):
         """
         Loop over cells horizontally or vertically (based on  @dir_ind) from first cell to destination cell
         :param dir_ind:
+        :param step forward in the grid(+1) or backward(-1)
         :return:
         """
         while not self.cur_cell == self.end_cell:
-            self.cur_cell[dir_ind] += 1
+            self.cur_cell[dir_ind] += step
             if self.calculate_intersections():
                 self.is_sight_line = False
                 break
@@ -186,7 +194,10 @@ class FindSightLine:
         elif ex_az == self.azi_line:
             self.find_next_cell(self.pivot_list[0][1])
         else:
-            self.find_next_cell(self.pivot_list[0][0])
+            try:
+                self.find_next_cell(self.pivot_list[0][0])
+            except:
+                pass
         # calculate_intersection
         if self.calculate_intersections():
             self.is_sight_line = False
@@ -203,6 +214,7 @@ class FindSightLine:
         :param values: it added to the current cell to find the next cell
         :return:
         """
+
         self.cur_cell[0] += values[0]
         self.cur_cell[1] += values[1]
 
@@ -321,11 +333,21 @@ if __name__ == "__main__":
     inter_pnt_list = [Point(feature.geometry().asPoint()) for feature in input_layers[1].getFeatures()]
     # save the cell location of each point in another array
     inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
+
+    # Code for performance:
+    my_time = 0
+    n = len(inter_pnt_list)
+    run_max = (n * (n + 1)) / 2
+    print(run_max)
     for index_i, point_start in enumerate(inter_pnt_list[:-1]):
-        cell_first = inter_cell_list[index_i]
+        print(index_i)
         index_j = index_i
         for point_end in inter_pnt_list[index_i + 1:]:
+            my_time += 1
+            print("Progress {:3.2%}".format(my_time / run_max))
+            cell_first = inter_cell_list[index_i].copy()
             index_j += 1
+            print(index_j)
             # if the two points are the same
             if point_start == point_end:
                 continue
