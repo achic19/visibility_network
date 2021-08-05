@@ -15,10 +15,7 @@ from sym_matrix import *
 from is_intersect import *
 import time
 
-sys.path.append(r'C:\Program Files\QGIS 3.0\apps\qgis\python\plugins')
 # Reference the algorithm you want to run
-sys.path.append(r'C:\Program Files\QGIS 3.0\apps\qgis\python\plugins')
-sys.path.append(r'C:\Program Files\QGIS 3.4\apps\qgis-ltr\python\plugins')
 sys.path.append(r'C:\Program Files\QGIS 3.10\apps\qgis-ltr\python\plugins')
 sys.path.append(r'C:\Program Files\QGIS 3.16\apps\qgis-ltr\python\plugins')
 from plugins import processing
@@ -249,7 +246,6 @@ class FindSightLine:
                 self.sys_matrix[pnt1.id, pnt2.id] = 1
 
 
-
 def upload_new_layer(path, name):
     """Upload shp layers"""
     layer_name = "layer" + name
@@ -298,7 +294,10 @@ if __name__ == "__main__":
         rectangle_points.append((extent.xMinimum(), extent.yMinimum()))
 
     # Build SameAreaCell object
-    geo_data_base = SameAreaCell(rectangle_points, 10)
+    size_cell = 10
+    print(size_cell)
+    geo_data_base = SameAreaCell(rectangle_points, size_cell)
+
     a = symarray(numpy.zeros((3, 3)))
     # Index that is point ID
     index_id = 0
@@ -337,10 +336,7 @@ if __name__ == "__main__":
     # geo_data_base.create_grid_shapefile()
     # calculate sight line
     # First, upload the gis file to remove old sight lines and make it ready for new sight lines
-    path = "sight_line.shp"
-    sight_line = QgsVectorLayer(path, "sight_line", "ogr")
-    sight_line.dataProvider().truncate()
-    data_provider = sight_line.dataProvider()
+
     # In this list all the new features (sight lines) will be stored
     feats = []
     inter_pnt_list = [Point(feature.geometry().asPoint()) for feature in input_layers[1].getFeatures()]
@@ -351,7 +347,6 @@ if __name__ == "__main__":
     my_time = 0
     n = len(inter_pnt_list)
     run_max = (n * (n + 1)) / 2
-    print(run_max)
     for index_i, point_start in enumerate(inter_pnt_list[:-1]):
         # print(index_i)
         index_j = index_i
@@ -374,10 +369,11 @@ if __name__ == "__main__":
                                                                                                        point_end.y)]))
                 feat.setAttributes([1, 2, 3])  # Set attributes for the current id
                 feats.append(feat)
+    path = "sight_line.shp"
+    sight_line = QgsVectorLayer(path, "sight_line", "ogr")
+    sight_line.dataProvider().truncate()
+    sight_line.dataProvider().addFeatures(feats)
 
-    data_provider.addFeatures(feats)
-    # Update fields for the vector grid
-    sight_line.updateFields()
     print(time.time() - start)
     # create line for other points in the list
     """For standalone application"""
