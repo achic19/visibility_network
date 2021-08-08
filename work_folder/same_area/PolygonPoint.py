@@ -1,6 +1,7 @@
 from shapely.geometry import Point
 
 
+
 class PolygonPoint(Point):
     def __init__(self, id_local: int, pnt: list):
         """
@@ -12,6 +13,7 @@ class PolygonPoint(Point):
         Point.__init__(self, pnt[0], pnt[1])
         self.nxt = None
         self.pre = None
+
 
 
 if __name__ == '__main__':

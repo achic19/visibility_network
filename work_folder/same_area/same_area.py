@@ -10,6 +10,7 @@ from PyQt5.QtGui import *
 from qgis.PyQt.QtCore import QVariant
 from qgis.core import *
 from shapely.geometry import Point
+from shapely.geometry import LineString
 from PolygonPoint import PolygonPoint
 from sym_matrix import *
 from is_intersect import *
@@ -198,10 +199,8 @@ class FindSightLine:
         elif ex_az == self.azi_line:
             self.find_next_cell(self.pivot_list[0][1])
         else:
-            try:
-                self.find_next_cell(self.pivot_list[0][0])
-            except:
-                pass
+            self.find_next_cell(self.pivot_list[0][0])
+
         # calculate_intersection
         if self.calculate_intersections():
             self.is_sight_line = False
@@ -310,16 +309,18 @@ if __name__ == "__main__":
             # Create two PolygonPoint objects from the the first two Points in the polygon
             sub_part = part[0]
             index_id += len(sub_part)
+
             fst_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[0])
             nxt_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[1])
             # update the next point of the first PolygonPoint object and put it the new database
             fst_pnt.nxt = nxt_pnt
             geo_data_base.add_point(fst_pnt)
             pre_pnt = fst_pnt
-            for i in range(1, len(sub_part) - 2):
+            for i_next, temp_pnt in enumerate(sub_part[:-1]):
                 # this loop creates new PolygonPoint object (the next index) and update all rest
                 # points of the current  PolygonPoint object (the current index)
                 # than put it into the database and update the temp variables for the next loop
+                new_line = LineString([temp_pnt, sub_part[i_next + 1]])
                 new_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[i + 1])
                 nxt_pnt.nxt = new_pnt
                 nxt_pnt.pre = pre_pnt
@@ -369,12 +370,13 @@ if __name__ == "__main__":
                                                                                                        point_end.y)]))
                 feat.setAttributes([1, 2, 3])  # Set attributes for the current id
                 feats.append(feat)
+
+    print(time.time() - start)
     path = "sight_line.shp"
     sight_line = QgsVectorLayer(path, "sight_line", "ogr")
     sight_line.dataProvider().truncate()
     sight_line.dataProvider().addFeatures(feats)
 
-    print(time.time() - start)
     # create line for other points in the list
     """For standalone application"""
     # Exit applications
