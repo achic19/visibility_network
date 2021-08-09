@@ -31,14 +31,14 @@ class Cell:
         :param i_x: cell index in x direction
         :param i_y: cell index in y direction
         """
-        self.points = []
+        self.lines = []
         self.extent = {'SW': QgsPointXY(x, y), 'SE': QgsPointXY(x + spacing, y),
                        'NE': QgsPointXY(x + spacing, y + spacing), 'NW': QgsPointXY(x, y + spacing)}
         self.i_e = i_x
         self.i_n = i_y
 
     def __iter__(self):
-        return iter(self.points)
+        return iter(self.lines)
 
 
 class SameAreaCell:
@@ -72,10 +72,39 @@ class SameAreaCell:
         self.num_of_pnt += 1
         return self.num_of_pnt
 
-    def add_point(self, pnt: PolygonPoint):
-        in_x = int((pnt.x - self.x_min) / self.size_cell)
-        in_y = int((pnt.y - self.y_min) / self.size_cell)
-        self.data_set[in_x][in_y].points.append(pnt)
+    def add_line(self, line: LineString):
+        in_x = ((numpy.array(line.coords.xy[0]) - self.x_min) / self.size_cell).astype(int)
+        in_y = ((numpy.array(line.coords.xy[1]) - self.x_min) / self.size_cell).astype(int)
+        self.data_set[in_x[0]][in_y[0]].lines.append(line)
+        if in_x[0] == in_x[1] and in_y[1] == in_y[1]:
+            return
+        in_x_0 = in_x[0]
+        in_y_0 = in_y[0]
+        if in_x[0] == in_x[1]:
+            if in_y[1] > in_y[0]:
+                while in_y_0 != in_y[1]:
+                    in_y_0 += 1
+                    self.data_set[in_x_0][in_y_0].lines.append(line)
+            else:
+                while in_y_0 != in_y[1]:
+                    in_y_0 -= 1
+                    self.data_set[in_x_0][in_y_0].lines.append(line)
+
+        elif in_y[0] == in_y[1]:
+            if in_x[1] > in_x[0]:
+                while in_x_0 != in_x[1]:
+                    in_x_0 += 1
+                    self.data_set[in_x_0][in_y_0].lines.append(line)
+            else:
+                while in_x_0 != in_x[1]:
+                    in_x_0 -= 1
+                    self.data_set[in_x_0][in_y_0].lines.append(line)
+        else:
+            pass
+    def add_line_horizontal_vertical(self, cell_index: int, step: int, start_0, end, line):
+        while in_x_0 != in_x[1]:
+            in_x_0 += 1
+            self.data_set[in_x_0][in_y_0].lines.append(line)
 
     def find_cell(self, pnt: Point):
         in_x = int((pnt.x - self.x_min) / self.size_cell)
@@ -109,8 +138,8 @@ class SameAreaCell:
                 feat.setGeometry(
                     QgsGeometry().fromPolygonXY([list(cell.extent.values())]))  # Set geometry for the current id
                 print(list(cell.extent.values()))
-                feat.setAttributes([my_id, cell.i_e, cell.i_n, len(cell.points)])  # Set attributes for the current id
-                print('{},{} :{}'.format(cell.i_e, cell.i_n, len(cell.points)))
+                feat.setAttributes([my_id, cell.i_e, cell.i_n, len(cell.lines)])  # Set attributes for the current id
+                print('{},{} :{}'.format(cell.i_e, cell.i_n, len(cell.lines)))
                 prov.addFeatures([feat])
                 my_id += 1
         # Update fields for the vector grid
@@ -309,29 +338,20 @@ if __name__ == "__main__":
             # Create two PolygonPoint objects from the the first two Points in the polygon
             sub_part = part[0]
             index_id += len(sub_part)
-
-            fst_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[0])
-            nxt_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[1])
-            # update the next point of the first PolygonPoint object and put it the new database
-            fst_pnt.nxt = nxt_pnt
-            geo_data_base.add_point(fst_pnt)
-            pre_pnt = fst_pnt
             for i_next, temp_pnt in enumerate(sub_part[:-1]):
                 # this loop creates new PolygonPoint object (the next index) and update all rest
                 # points of the current  PolygonPoint object (the current index)
                 # than put it into the database and update the temp variables for the next loop
-                new_line = LineString([temp_pnt, sub_part[i_next + 1]])
-                new_pnt = PolygonPoint(geo_data_base.increment_num_pnts(), sub_part[i + 1])
-                nxt_pnt.nxt = new_pnt
-                nxt_pnt.pre = pre_pnt
-                geo_data_base.add_point(nxt_pnt)
-                pre_pnt = nxt_pnt
-                nxt_pnt = new_pnt
+                next_pnt = sub_part[i_next + 1]
+                if next_pnt == temp_pnt:
+                    continue
+                new_line = LineString([temp_pnt, next_pnt])
+                geo_data_base.add_line(new_line)
 
             # operation for the last point in the polygon
             nxt_pnt.pre = pre_pnt
             nxt_pnt.nxt = fst_pnt
-            geo_data_base.add_point(nxt_pnt)
+            geo_data_base.add_line(nxt_pnt)
             fst_pnt.pre = nxt_pnt
 
     # geo_data_base.create_grid_shapefile()
