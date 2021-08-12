@@ -72,20 +72,20 @@ class QTree():
 
 
 def recursive_subdivide(node, k, lines):
-    if len(node.lines) <= k:
+    if len(node.points) <= k:
         # It's ready to find a similar points
-        for k, point in enumerate(node.lines):
+        for k, point in enumerate(node.points):
             flag = -1
             i = k
-            while i + 1 < len(node.lines):
+            while i + 1 < len(node.points):
                 # If it's the points
-                if point.x == node.lines[i + 1].x and point.y == node.lines[i + 1].y:
+                if point.x == node.points[i + 1].x and point.y == node.points[i + 1].y:
                     if flag == -1:
-                        flag = node.lines[i + 1].id_line
-                        node.lines.remove(node.lines[i + 1])
+                        flag = node.points[i + 1].id_line
+                        node.points.remove(node.points[i + 1])
                     # In case of real intersection
                     else:
-                        node.lines.remove(node.lines[i + 1])
+                        node.points.remove(node.points[i + 1])
                         flag = -2
                 else:
                     i = i + 1
@@ -101,19 +101,19 @@ def recursive_subdivide(node, k, lines):
     w_ = float(node.width / 2)
     h_ = float(node.height / 2)
 
-    p = contains(node.x0, node.y0, w_, h_, node.lines)
+    p = contains(node.x0, node.y0, w_, h_, node.points)
     x1 = Node(node.x0, node.y0, w_, h_, p)
     lines = recursive_subdivide(x1, k, lines)
 
-    p = contains(node.x0, node.y0 + h_, w_, h_, node.lines)
+    p = contains(node.x0, node.y0 + h_, w_, h_, node.points)
     x2 = Node(node.x0, node.y0 + h_, w_, h_, p)
     lines = recursive_subdivide(x2, k, lines)
 
-    p = contains(node.x0 + w_, node.y0, w_, h_, node.lines)
+    p = contains(node.x0 + w_, node.y0, w_, h_, node.points)
     x3 = Node(node.x0 + w_, node.y0, w_, h_, p)
     lines = recursive_subdivide(x3, k, lines)
 
-    p = contains(node.x0 + w_, node.y0 + h_, w_, h_, node.lines)
+    p = contains(node.x0 + w_, node.y0 + h_, w_, h_, node.points)
     x4 = Node(node.x0 + w_, node.y0 + h_, w_, h_, p)
     lines = recursive_subdivide(x4, k, lines)
 

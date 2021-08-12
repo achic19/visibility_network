@@ -78,33 +78,57 @@ class SameAreaCell:
         self.data_set[in_x[0]][in_y[0]].lines.append(line)
         if in_x[0] == in_x[1] and in_y[1] == in_y[1]:
             return
-        in_x_0 = in_x[0]
-        in_y_0 = in_y[0]
+        ind_first = [in_x[0], in_y[0]]
+        ind_end = [in_x[1], in_y[1]]
         if in_x[0] == in_x[1]:
             if in_y[1] > in_y[0]:
-                while in_y_0 != in_y[1]:
-                    in_y_0 += 1
-                    self.data_set[in_x_0][in_y_0].lines.append(line)
+                self.add_line_horizontal_vertical(dir_ind=1, step=1, ind_0=ind_first, ind_1=ind_end, line=line)
             else:
-                while in_y_0 != in_y[1]:
-                    in_y_0 -= 1
-                    self.data_set[in_x_0][in_y_0].lines.append(line)
+                self.add_line_horizontal_vertical(dir_ind=1, step=-1, ind_0=ind_first, ind_1=ind_end, line=line)
 
         elif in_y[0] == in_y[1]:
             if in_x[1] > in_x[0]:
-                while in_x_0 != in_x[1]:
-                    in_x_0 += 1
-                    self.data_set[in_x_0][in_y_0].lines.append(line)
+                self.add_line_horizontal_vertical(dir_ind=0, step=1, ind_0=ind_first, ind_1=ind_end, line=line)
             else:
-                while in_x_0 != in_x[1]:
-                    in_x_0 -= 1
-                    self.data_set[in_x_0][in_y_0].lines.append(line)
+                self.add_line_horizontal_vertical(dir_ind=0, step=-1, ind_0=ind_first, ind_1=ind_end, line=line)
         else:
-            pass
-    def add_line_horizontal_vertical(self, cell_index: int, step: int, start_0, end, line):
-        while in_x_0 != in_x[1]:
-            in_x_0 += 1
-            self.data_set[in_x_0][in_y_0].lines.append(line)
+            start_line = line.coords[:2]
+            azi_line = azimuth_calculator(line.coords[:2], line.coords[2])
+            if 0 < azi_line < 90:
+                pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
+            elif 90 < azi_line < 180:
+                pivot = {'SE': [(1, 0), (1, -1), (0, -1)]}
+            elif 180 < azi_line < 270:
+                pivot = {'SW': [(0, -1), (-1, -1), (-1, 0)]}
+            else:
+                pivot = {'NW': [(-1, 0), (-1, 1), (0, 1)]}
+            pivot_list = list(pivot.values())
+            self.loop_over_cell_with_pivot(ind_0=ind_first, ind_1=ind_end, pivot=pivot, start_line=start_line,
+                                           azi_line=azi_line, pivot_list=pivot_list, line=line)
+
+    def add_line_horizontal_vertical(self, dir_ind: int, step: int, ind_0: list, ind_1: list, line: LineString):
+        while ind_0 != ind_1:
+            ind_0[dir_ind] += step
+            self[ind_0].lines.append(line)
+
+    def loop_over_cell_with_pivot(self, ind_0, ind_1, pivot, start_line, azi_line, pivot_list, line):
+        """
+        It loops over points in the cells from the cell of the current point to the destination cell through the cells
+        that are selected based on the direction in the pivot dictionary and the line azimuth.
+        :return:
+        """
+        key = list(pivot.keys())[0]
+        pivot_point = self[ind_0].extent[key]
+        ex_az = azimuth_calculator(start_line, Point(pivot_point))
+        while ind_0 != ind_1:
+            if ex_az < azi_line:
+                ind_0 = find_next_cell(pivot_list[0][2], ind_0=ind_0)
+
+            elif ex_az == azi_line:
+                ind_0 = find_next_cell(pivot_list[0][1], ind_0=ind_0)
+            else:
+                ind_0 = find_next_cell(pivot_list[0][0], ind_0=ind_0)
+            self[ind_0].lines.append(line)
 
     def find_cell(self, pnt: Point):
         in_x = int((pnt.x - self.x_min) / self.size_cell)
@@ -167,7 +191,7 @@ class FindSightLine:
         self.is_sight_line = True
         # s_matrix is a  symarray which allow me to update line both directions
         self.sys_matrix = symarray(numpy.zeros((num_of_pnts, num_of_pnts)))
-        self.azi_line = azimuth_calculator(self.start_line, self.end_line)
+
         # If the current line intersects polygon lines, this line is not sight line
         if self.calculate_intersections():
             self.is_sight_line = False
@@ -188,6 +212,7 @@ class FindSightLine:
             # A pivot variable is a dictionary.
             # {pointer to the one of the cell corners:
             # [optional next cell: the examined azimuth is smaller/same/larger]}
+            self.azi_line = azimuth_calculator(self.start_line, self.end_line)
             if 0 < self.azi_line < 90:
                 self.pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
             elif 90 < self.azi_line < 180:
@@ -274,6 +299,19 @@ class FindSightLine:
                 self.sys_matrix[pnt1.id, pnt2.id] = 1
 
 
+def find_next_cell(values: tuple, ind_0):
+    """
+    find the next cell according to the specified values
+    :param ind_0:
+    :param values: it added to the current cell to find the next cell
+    :return:
+    """
+
+    ind_0[0] += values[0]
+    ind_0[1] += values[1]
+    return ind_0
+
+
 def upload_new_layer(path, name):
     """Upload shp layers"""
     layer_name = "layer" + name
@@ -337,7 +375,7 @@ if __name__ == "__main__":
         for part in json1_data:
             # Create two PolygonPoint objects from the the first two Points in the polygon
             sub_part = part[0]
-            index_id += len(sub_part)
+            sub_part.append(sub_part[0])
             for i_next, temp_pnt in enumerate(sub_part[:-1]):
                 # this loop creates new PolygonPoint object (the next index) and update all rest
                 # points of the current  PolygonPoint object (the current index)
@@ -348,11 +386,7 @@ if __name__ == "__main__":
                 new_line = LineString([temp_pnt, next_pnt])
                 geo_data_base.add_line(new_line)
 
-            # operation for the last point in the polygon
-            nxt_pnt.pre = pre_pnt
-            nxt_pnt.nxt = fst_pnt
-            geo_data_base.add_line(nxt_pnt)
-            fst_pnt.pre = nxt_pnt
+
 
     # geo_data_base.create_grid_shapefile()
     # calculate sight line

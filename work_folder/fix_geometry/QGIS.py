@@ -37,10 +37,10 @@ class myQGIS:
         my_tree = self.from_qgis_to_Qtree_list(my_tree)
 
         # Dimension for Qtree
-        x0 = min(my_tree.lines, key=lambda x: x.x).x
-        y0 = min(my_tree.lines, key=lambda x: x.y).y
-        x1 = max(my_tree.lines, key=lambda x: x.x).x
-        y1 = max(my_tree.lines, key=lambda x: x.y).y
+        x0 = min(my_tree.points, key=lambda x: x.x).x
+        y0 = min(my_tree.points, key=lambda x: x.y).y
+        x1 = max(my_tree.points, key=lambda x: x.x).x
+        y1 = max(my_tree.points, key=lambda x: x.y).y
         w = x1 - x0
         h = y1 - y0
         my_tree.add_root(x0, y0, w, h)
@@ -63,10 +63,10 @@ class myQGIS:
             qtree.line.append(i)
 
             index_to_end = len(feature.geometry().asMultiPolyline()[0]) - 1
-            qtree.add_line(feature.geometry().asMultiPolyline()[0][0][0],
-                           feature.geometry().asMultiPolyline()[0][0][1], i)
-            qtree.add_line(feature.geometry().asMultiPolyline()[0][index_to_end][0],
-                           feature.geometry().asMultiPolyline()[0][index_to_end][1], i)
+            qtree.add_point(feature.geometry().asMultiPolyline()[0][0][0],
+                            feature.geometry().asMultiPolyline()[0][0][1], i)
+            qtree.add_point(feature.geometry().asMultiPolyline()[0][index_to_end][0],
+                            feature.geometry().asMultiPolyline()[0][index_to_end][1], i)
         return qtree
 
     def upload_new_layer(self, path, name):
