@@ -31,6 +31,7 @@ class Cell:
         :param i_x: cell index in x direction
         :param i_y: cell index in y direction
         """
+        print("x-{}, y-{}".format(i_x, i_y))
         self.lines = []
         self.extent = {'SW': QgsPointXY(x, y), 'SE': QgsPointXY(x + spacing, y),
                        'NE': QgsPointXY(x + spacing, y + spacing), 'NW': QgsPointXY(x, y + spacing)}
@@ -73,6 +74,7 @@ class SameAreaCell:
         return self.num_of_pnt
 
     def add_line(self, line: LineString):
+        # ToDo wrong result here
         in_x = ((numpy.array(line.coords.xy[0]) - self.x_min) / self.size_cell).astype(int)
         in_y = ((numpy.array(line.coords.xy[1]) - self.x_min) / self.size_cell).astype(int)
         self.data_set[in_x[0]][in_y[0]].lines.append(line)
@@ -348,7 +350,7 @@ if __name__ == "__main__":
     #                     'MAX_ATTEMPTS': 200,
     #                     'OUTPUT': 'code_test.shp'})
     input_constrains = 'constrains.shp'
-    input_in = 'intersections3.shp'
+    input_in = 'intersections.shp'
     start = time.time()
     input_layers = [upload_new_layer(input_constrains, 'file'), upload_new_layer(input_in, 'file')]
 
@@ -360,14 +362,14 @@ if __name__ == "__main__":
         rectangle_points.append((extent.xMinimum(), extent.yMinimum()))
 
     # Build SameAreaCell object
-    size_cell = 10
+    size_cell = 50
     print(size_cell)
     geo_data_base = SameAreaCell(rectangle_points, size_cell)
 
     a = symarray(numpy.zeros((3, 3)))
     # Index that is point ID
     index_id = 0
-
+    # geo_data_base.create_grid_shapefile()
     for feature in input_layers[0].getFeatures():
         feature_list = feature.geometry().asJson()
         attribute = feature.attributes()[0]
@@ -375,7 +377,6 @@ if __name__ == "__main__":
         for part in json1_data:
             # Create two PolygonPoint objects from the the first two Points in the polygon
             sub_part = part[0]
-            sub_part.append(sub_part[0])
             for i_next, temp_pnt in enumerate(sub_part[:-1]):
                 # this loop creates new PolygonPoint object (the next index) and update all rest
                 # points of the current  PolygonPoint object (the current index)
@@ -386,9 +387,6 @@ if __name__ == "__main__":
                 new_line = LineString([temp_pnt, next_pnt])
                 geo_data_base.add_line(new_line)
 
-
-
-    # geo_data_base.create_grid_shapefile()
     # calculate sight line
     # First, upload the gis file to remove old sight lines and make it ready for new sight lines
 
