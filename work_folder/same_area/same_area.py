@@ -31,7 +31,7 @@ class Cell:
         :param i_x: cell index in x direction
         :param i_y: cell index in y direction
         """
-        print("x-{}, y-{}".format(i_x, i_y))
+        # print("x-{}, y-{}".format(i_x, i_y))
         self.lines = []
         self.extent = {'SW': QgsPointXY(x, y), 'SE': QgsPointXY(x + spacing, y),
                        'NE': QgsPointXY(x + spacing, y + spacing), 'NW': QgsPointXY(x, y + spacing)}
@@ -74,10 +74,10 @@ class SameAreaCell:
         return self.num_of_pnt
 
     def add_line(self, line: LineString):
-        # ToDo wrong result here
+
         in_x = ((numpy.array(line.coords.xy[0]) - self.x_min) / self.size_cell).astype(int)
-        in_y = ((numpy.array(line.coords.xy[1]) - self.x_min) / self.size_cell).astype(int)
-        self.data_set[in_x[0]][in_y[0]].lines.append(line)
+        in_y = ((numpy.array(line.coords.xy[1]) - self.y_min) / self.size_cell).astype(int)
+        self[[in_x[0], in_y[0]]].lines.append(line)
         if in_x[0] == in_x[1] and in_y[1] == in_y[1]:
             return
         ind_first = [in_x[0], in_y[0]]
@@ -87,15 +87,14 @@ class SameAreaCell:
                 self.add_line_horizontal_vertical(dir_ind=1, step=1, ind_0=ind_first, ind_1=ind_end, line=line)
             else:
                 self.add_line_horizontal_vertical(dir_ind=1, step=-1, ind_0=ind_first, ind_1=ind_end, line=line)
-
         elif in_y[0] == in_y[1]:
             if in_x[1] > in_x[0]:
                 self.add_line_horizontal_vertical(dir_ind=0, step=1, ind_0=ind_first, ind_1=ind_end, line=line)
             else:
                 self.add_line_horizontal_vertical(dir_ind=0, step=-1, ind_0=ind_first, ind_1=ind_end, line=line)
         else:
-            start_line = line.coords[:2]
-            azi_line = azimuth_calculator(line.coords[:2], line.coords[2])
+            start_line = Point(line.coords[0])
+            azi_line = azimuth_calculator(start_line, Point(line.coords[1]))
             if 0 < azi_line < 90:
                 pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
             elif 90 < azi_line < 180:
@@ -120,9 +119,9 @@ class SameAreaCell:
         :return:
         """
         key = list(pivot.keys())[0]
-        pivot_point = self[ind_0].extent[key]
-        ex_az = azimuth_calculator(start_line, Point(pivot_point))
         while ind_0 != ind_1:
+            pivot_point = self[ind_0].extent[key]
+            ex_az = azimuth_calculator(start_line, Point(pivot_point))
             if ex_az < azi_line:
                 ind_0 = find_next_cell(pivot_list[0][2], ind_0=ind_0)
 
@@ -136,6 +135,23 @@ class SameAreaCell:
         in_x = int((pnt.x - self.x_min) / self.size_cell)
         in_y = int((pnt.y - self.y_min) / self.size_cell)
         return [in_x, in_y]
+
+    def function1(self, feature):
+        feature_list = feature.geometry().asJson()
+        json1_data = json.loads(feature_list)['coordinates']
+        for part in json1_data:
+            # Create two PolygonPoint objects from the the first two Points in the polygon
+            sub_part = part[0]
+            for i_next, temp_pnt in enumerate(sub_part[:-1]):
+                # this loop creates new PolygonPoint object (the next index) and update all rest
+                # points of the current  PolygonPoint object (the current index)
+                # than put it into the database and update the temp variables for the next loop
+                next_pnt = sub_part[i_next + 1]
+                if next_pnt == temp_pnt:
+                    continue
+                new_line = LineString([temp_pnt, next_pnt])
+                self.add_line(new_line)
+        jj = 9
 
     def create_grid_shapefile(self):
         # Create the grid layer
@@ -172,133 +188,133 @@ class SameAreaCell:
         vector_grid.updateFields()
 
 
-class FindSightLine:
-    def __init__(self, start_line: Point, end_line: Point, cur_cell: list, end_cell: list, data_base: SameAreaCell,
-                 num_of_pnts: int):
-        """
-        It checks and builds a sight line between two points
-        :param start_line:
-        :param end_line:
-        :param cur_cell:
-        :param end_cell:
-        :param data_base:
-        :param num_of_pnts:
-        """
-        # ToDo - tart_line  end_line cur_cell end_cell data_base sys_matrix azi_line should be private
-        self.start_line = start_line
-        self.end_line = end_line
-        self.cur_cell = cur_cell
-        self.end_cell = end_cell
-        self.data_base = data_base
-        self.is_sight_line = True
-        # s_matrix is a  symarray which allow me to update line both directions
-        self.sys_matrix = symarray(numpy.zeros((num_of_pnts, num_of_pnts)))
+# class FindSightLine:
+#     def __init__(self, start_line: Point, end_line: Point, cur_cell: list, end_cell: list, data_base: SameAreaCell,
+#                  num_of_pnts: int):
+#         """
+#         It checks and builds a sight line between two points
+#         :param start_line:
+#         :param end_line:
+#         :param cur_cell:
+#         :param end_cell:
+#         :param data_base:
+#         :param num_of_pnts:
+#         """
 
-        # If the current line intersects polygon lines, this line is not sight line
-        if self.calculate_intersections():
-            self.is_sight_line = False
-        elif cell_first == cell_end:
-            pass
-        # if the points have the same index horizontally or vertically
-        elif cell_first[0] == cell_end[0]:
-            if cell_first[1] > cell_end[1]:
-                self.loop_over_horizontal_vertical_cells(1, -1)
-            else:
-                self.loop_over_horizontal_vertical_cells(1, 1)
-        elif cell_first[1] == cell_end[1]:
-            if cell_first[0] > cell_end[0]:
-                self.loop_over_horizontal_vertical_cells(0, -1)
-            else:
-                self.loop_over_horizontal_vertical_cells(0, 1)
-        else:
-            # A pivot variable is a dictionary.
-            # {pointer to the one of the cell corners:
-            # [optional next cell: the examined azimuth is smaller/same/larger]}
-            self.azi_line = azimuth_calculator(self.start_line, self.end_line)
-            if 0 < self.azi_line < 90:
-                self.pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
-            elif 90 < self.azi_line < 180:
-                self.pivot = {'SE': [(1, 0), (1, -1), (0, -1)]}
-            elif 180 < self.azi_line < 270:
-                self.pivot = {'SW': [(0, -1), (-1, -1), (-1, 0)]}
-            else:
-                self.pivot = {'NW': [(-1, 0), (-1, 1), (0, 1)]}
-            self.pivot_list = list(self.pivot.values())
-            self.loop_over_cell_with_pivot()
-
-    def loop_over_horizontal_vertical_cells(self, dir_ind: int, step: int):
-        """
-        Loop over cells horizontally or vertically (based on  @dir_ind) from first cell to destination cell
-        :param dir_ind:
-        :param step forward in the grid(+1) or backward(-1)
-        :return:
-        """
-        while not self.cur_cell == self.end_cell:
-            self.cur_cell[dir_ind] += step
-            if self.calculate_intersections():
-                self.is_sight_line = False
-                break
-
-    def loop_over_cell_with_pivot(self):
-        """
-        It loops over points in the cells from the cell of the current point to the destination cell through the cells
-        that are selected based on the direction in the pivot dictionary and the line azimuth.
-        :return:
-        """
-        key = list(self.pivot.keys())[0]
-        pivot_point = self.data_base[self.cur_cell].extent[key]
-        ex_az = azimuth_calculator(self.start_line, Point(pivot_point))
-
-        if ex_az < self.azi_line:
-            self.find_next_cell(self.pivot_list[0][2])
-
-        elif ex_az == self.azi_line:
-            self.find_next_cell(self.pivot_list[0][1])
-        else:
-            self.find_next_cell(self.pivot_list[0][0])
-
-        # calculate_intersection
-        if self.calculate_intersections():
-            self.is_sight_line = False
-            return
-        # the next step (if the two cells are not the same check the next cell)
-        if self.cur_cell == self.end_cell:
-            return
-        else:
-            self.loop_over_cell_with_pivot()
-
-    def find_next_cell(self, values: tuple):
-        """
-        find the next cell according to the specified values
-        :param values: it added to the current cell to find the next cell
-        :return:
-        """
-
-        self.cur_cell[0] += values[0]
-        self.cur_cell[1] += values[1]
-
-    def calculate_intersections(self):
-        """
-        It goes over all the points in the current cell and search for intersection between each pair of points and the
-        optional sight line
-        :return:
-        """
-        cur_cell = self.data_base[self.cur_cell]
-        for point in cur_cell:
-            if self.two_lines_intersection(point, point.nxt) or self.two_lines_intersection(point, point.pre):
-                return True
-        return False
-
-    def two_lines_intersection(self, pnt1: PolygonPoint, pnt2: PolygonPoint):
-        """
-        It checks if two lines intersect when it hasn't been checked before
-        :return:
-        """
-        if self.sys_matrix[pnt1.id, pnt2.id] == 0:
-            if doIntersect(self.start_line, self.end_line, pnt1, pnt2):
-                return True
-            else:
-                self.sys_matrix[pnt1.id, pnt2.id] = 1
+#         self.start_line = start_line
+#         self.end_line = end_line
+#         self.cur_cell = cur_cell
+#         self.end_cell = end_cell
+#         self.data_base = data_base
+#         self.is_sight_line = True
+#         # s_matrix is a  symarray which allow me to update line both directions
+#         self.sys_matrix = symarray(numpy.zeros((num_of_pnts, num_of_pnts)))
+#
+#         # If the current line intersects polygon lines, this line is not sight line
+#         if self.calculate_intersections():
+#             self.is_sight_line = False
+#         elif cell_first == cell_end:
+#             pass
+#         # if the points have the same index horizontally or vertically
+#         elif cell_first[0] == cell_end[0]:
+#             if cell_first[1] > cell_end[1]:
+#                 self.loop_over_horizontal_vertical_cells(1, -1)
+#             else:
+#                 self.loop_over_horizontal_vertical_cells(1, 1)
+#         elif cell_first[1] == cell_end[1]:
+#             if cell_first[0] > cell_end[0]:
+#                 self.loop_over_horizontal_vertical_cells(0, -1)
+#             else:
+#                 self.loop_over_horizontal_vertical_cells(0, 1)
+#         else:
+#             # A pivot variable is a dictionary.
+#             # {pointer to the one of the cell corners:
+#             # [optional next cell: the examined azimuth is smaller/same/larger]}
+#             self.azi_line = azimuth_calculator(self.start_line, self.end_line)
+#             if 0 < self.azi_line < 90:
+#                 self.pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
+#             elif 90 < self.azi_line < 180:
+#                 self.pivot = {'SE': [(1, 0), (1, -1), (0, -1)]}
+#             elif 180 < self.azi_line < 270:
+#                 self.pivot = {'SW': [(0, -1), (-1, -1), (-1, 0)]}
+#             else:
+#                 self.pivot = {'NW': [(-1, 0), (-1, 1), (0, 1)]}
+#             self.pivot_list = list(self.pivot.values())
+#             self.loop_over_cell_with_pivot()
+#
+#     def loop_over_horizontal_vertical_cells(self, dir_ind: int, step: int):
+#         """
+#         Loop over cells horizontally or vertically (based on  @dir_ind) from first cell to destination cell
+#         :param dir_ind:
+#         :param step forward in the grid(+1) or backward(-1)
+#         :return:
+#         """
+#         while not self.cur_cell == self.end_cell:
+#             self.cur_cell[dir_ind] += step
+#             if self.calculate_intersections():
+#                 self.is_sight_line = False
+#                 break
+#
+#     def loop_over_cell_with_pivot(self):
+#         """
+#         It loops over points in the cells from the cell of the current point to the destination cell through the cells
+#         that are selected based on the direction in the pivot dictionary and the line azimuth.
+#         :return:
+#         """
+#         key = list(self.pivot.keys())[0]
+#         pivot_point = self.data_base[self.cur_cell].extent[key]
+#         ex_az = azimuth_calculator(self.start_line, Point(pivot_point))
+#
+#         if ex_az < self.azi_line:
+#             self.find_next_cell(self.pivot_list[0][2])
+#
+#         elif ex_az == self.azi_line:
+#             self.find_next_cell(self.pivot_list[0][1])
+#         else:
+#             self.find_next_cell(self.pivot_list[0][0])
+#
+#         # calculate_intersection
+#         if self.calculate_intersections():
+#             self.is_sight_line = False
+#             return
+#         # the next step (if the two cells are not the same check the next cell)
+#         if self.cur_cell == self.end_cell:
+#             return
+#         else:
+#             self.loop_over_cell_with_pivot()
+#
+#     def find_next_cell(self, values: tuple):
+#         """
+#         find the next cell according to the specified values
+#         :param values: it added to the current cell to find the next cell
+#         :return:
+#         """
+#
+#         self.cur_cell[0] += values[0]
+#         self.cur_cell[1] += values[1]
+#
+#     def calculate_intersections(self):
+#         """
+#         It goes over all the points in the current cell and search for intersection between each pair of points and the
+#         optional sight line
+#         :return:
+#         """
+#         cur_cell = self.data_base[self.cur_cell]
+#         for point in cur_cell:
+#             if self.two_lines_intersection(point, point.nxt) or self.two_lines_intersection(point, point.pre):
+#                 return True
+#         return False
+#
+#     def two_lines_intersection(self, pnt1: PolygonPoint, pnt2: PolygonPoint):
+#         """
+#         It checks if two lines intersect when it hasn't been checked before
+#         :return:
+#         """
+#         if self.sys_matrix[pnt1.id, pnt2.id] == 0:
+#             if doIntersect(self.start_line, self.end_line, pnt1, pnt2):
+#                 return True
+#             else:
+#                 self.sys_matrix[pnt1.id, pnt2.id] = 1
 
 
 def find_next_cell(values: tuple, ind_0):
@@ -363,71 +379,72 @@ if __name__ == "__main__":
 
     # Build SameAreaCell object
     size_cell = 50
-    print(size_cell)
+
     geo_data_base = SameAreaCell(rectangle_points, size_cell)
 
     a = symarray(numpy.zeros((3, 3)))
     # Index that is point ID
     index_id = 0
     # geo_data_base.create_grid_shapefile()
-    for feature in input_layers[0].getFeatures():
-        feature_list = feature.geometry().asJson()
-        attribute = feature.attributes()[0]
-        json1_data = json.loads(feature_list)['coordinates']
-        for part in json1_data:
-            # Create two PolygonPoint objects from the the first two Points in the polygon
-            sub_part = part[0]
-            for i_next, temp_pnt in enumerate(sub_part[:-1]):
-                # this loop creates new PolygonPoint object (the next index) and update all rest
-                # points of the current  PolygonPoint object (the current index)
-                # than put it into the database and update the temp variables for the next loop
-                next_pnt = sub_part[i_next + 1]
-                if next_pnt == temp_pnt:
-                    continue
-                new_line = LineString([temp_pnt, next_pnt])
-                geo_data_base.add_line(new_line)
-
+    x = map(geo_data_base.function1, input_layers[0].getFeatures())
+    hh=0
+    # for feature in input_layers[0].getFeatures():
+    #     feature_list = feature.geometry().asJson()
+    #     json1_data = json.loads(feature_list)['coordinates']
+    #     for part in json1_data:
+    #         # Create two PolygonPoint objects from the the first two Points in the polygon
+    #         sub_part = part[0]
+    #         for i_next, temp_pnt in enumerate(sub_part[:-1]):
+    #             # this loop creates new PolygonPoint object (the next index) and update all rest
+    #             # points of the current  PolygonPoint object (the current index)
+    #             # than put it into the database and update the temp variables for the next loop
+    #             next_pnt = sub_part[i_next + 1]
+    #             if next_pnt == temp_pnt:
+    #                 continue
+    #             new_line = LineString([temp_pnt, next_pnt])
+    #             geo_data_base.add_line(new_line)
+    print(time.time() - start)
     # calculate sight line
     # First, upload the gis file to remove old sight lines and make it ready for new sight lines
 
     # In this list all the new features (sight lines) will be stored
-    feats = []
-    inter_pnt_list = [Point(feature.geometry().asPoint()) for feature in input_layers[1].getFeatures()]
-    # save the cell location of each point in another array
-    inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
-
-    # Code for performance:
-    my_time = 0
-    n = len(inter_pnt_list)
-    run_max = (n * (n + 1)) / 2
-    for index_i, point_start in enumerate(inter_pnt_list[:-1]):
-        # print(index_i)
-        index_j = index_i
-        for point_end in inter_pnt_list[index_i + 1:]:
-            my_time += 1
-            # print("Progress {:3.2%}".format(my_time / run_max))
-            cell_first = inter_cell_list[index_i].copy()
-            index_j += 1
-            # print(index_j)
-            # if the two points are the same
-            if point_start == point_end:
-                continue
-            # Call to FindSightLine class to check if sight line is exist
-
-            cell_end = inter_cell_list[index_j]
-            if FindSightLine(point_start, point_end, cell_first, cell_end, geo_data_base, index_id).is_sight_line:
-                feat = QgsFeature()
-                feat.setGeometry(
-                    QgsGeometry().fromPolylineXY([QgsPointXY(point_start.x, point_start.y), QgsPointXY(point_end.x,
-                                                                                                       point_end.y)]))
-                feat.setAttributes([1, 2, 3])  # Set attributes for the current id
-                feats.append(feat)
-
-    print(time.time() - start)
-    path = "sight_line.shp"
-    sight_line = QgsVectorLayer(path, "sight_line", "ogr")
-    sight_line.dataProvider().truncate()
-    sight_line.dataProvider().addFeatures(feats)
+    # feats = []
+    # inter_pnt_list = [Point(feature.geometry().asPoint()) for feature in input_layers[1].getFeatures()]
+    # # save the cell location of each point in another array
+    # inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
+    #
+    # # Code for performance:
+    # my_time = 0
+    # n = len(inter_pnt_list)
+    # run_max = (n * (n + 1)) / 2
+    # for index_i, point_start in enumerate(inter_pnt_list[:-1]):
+    #     # print(index_i)
+    #     index_j = index_i
+    #     for point_end in inter_pnt_list[index_i + 1:]:
+    #         my_time += 1
+    #         # print("Progress {:3.2%}".format(my_time / run_max))
+    #         cell_first = inter_cell_list[index_i].copy()
+    #         index_j += 1
+    #         # print(index_j)
+    #         # if the two points are the same
+    #         if point_start == point_end:
+    #             continue
+    #         # Call to FindSightLine class to check if sight line is exist
+    #
+    #         cell_end = inter_cell_list[index_j]
+    #         if FindSightLine(point_start, point_end, cell_first, cell_end, geo_data_base, index_id).is_sight_line:
+    #             feat = QgsFeature()
+    #             feat.setGeometry(
+    #                 QgsGeometry().fromPolylineXY([QgsPointXY(point_start.x, point_start.y), QgsPointXY(point_end.x,
+    #                                                                                                    point_end.y)]))
+    #             feat.setAttributes([1, 2, 3])  # Set attributes for the current id
+    #             feats.append(feat)
+    #
+    # print(time.time() - start)
+    # path = "sight_line.shp"
+    # sight_line = QgsVectorLayer(path, "sight_line", "ogr")
+    # sight_line.dataProvider().truncate()
+    # sight_line.dataProvider().addFeatures(feats)
 
     # create line for other points in the list
     """For standalone application"""
