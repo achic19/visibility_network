@@ -15,6 +15,7 @@ from PolygonPoint import PolygonPoint
 from sym_matrix import *
 from is_intersect import *
 import time
+import concurrent.futures
 
 # Reference the algorithm you want to run
 sys.path.append(r'C:\Program Files\QGIS 3.10\apps\qgis-ltr\python\plugins')
@@ -151,7 +152,6 @@ class SameAreaCell:
                     continue
                 new_line = LineString([temp_pnt, next_pnt])
                 self.add_line(new_line)
-        jj = 9
 
     def create_grid_shapefile(self):
         # Create the grid layer
@@ -355,16 +355,12 @@ def azimuth_calculator(pnt1: Point, pnt2: Point) -> float:
 
 
 if __name__ == "__main__":
+    # Start new Qgis application
     app = QGuiApplication([])
     QgsApplication.setPrefixPath(r'C:\Program Files\QGIS 3.0\apps\qgis', True)
     QgsApplication.initQgis()
-    # for num_of_pnts in range(10, 100, 10):
-    #     # input_constrains = 'test_same_area/multiparts.shp'
-    #     processing.run("native:randompointsinextent",
-    #                    {'EXTENT': '-17237.309800000,-9059.566200000,6710225.601400000,6716296.502700000 [EPSG:3857]',
-    #                     'POINTS_NUMBER': 10, 'MIN_DISTANCE': 0, 'TARGET_CRS': QgsCoordinateReferenceSystem('EPSG:3857'),
-    #                     'MAX_ATTEMPTS': 200,
-    #                     'OUTPUT': 'code_test.shp'})
+
+    # Input
     input_constrains = 'constrains.shp'
     input_in = 'intersections.shp'
     start = time.time()
@@ -379,31 +375,28 @@ if __name__ == "__main__":
 
     # Build SameAreaCell object
     size_cell = 50
-
     geo_data_base = SameAreaCell(rectangle_points, size_cell)
 
-    a = symarray(numpy.zeros((3, 3)))
-    # Index that is point ID
-    index_id = 0
+    # if Necessary create grid
     # geo_data_base.create_grid_shapefile()
-    x = map(geo_data_base.function1, input_layers[0].getFeatures())
-    hh=0
-    # for feature in input_layers[0].getFeatures():
-    #     feature_list = feature.geometry().asJson()
-    #     json1_data = json.loads(feature_list)['coordinates']
-    #     for part in json1_data:
-    #         # Create two PolygonPoint objects from the the first two Points in the polygon
-    #         sub_part = part[0]
-    #         for i_next, temp_pnt in enumerate(sub_part[:-1]):
-    #             # this loop creates new PolygonPoint object (the next index) and update all rest
-    #             # points of the current  PolygonPoint object (the current index)
-    #             # than put it into the database and update the temp variables for the next loop
-    #             next_pnt = sub_part[i_next + 1]
-    #             if next_pnt == temp_pnt:
-    #                 continue
-    #             new_line = LineString([temp_pnt, next_pnt])
-    #             geo_data_base.add_line(new_line)
-    print(time.time() - start)
+
+    for feature in input_layers[0].getFeatures():
+        feature_list = feature.geometry().asJson()
+        json1_data = json.loads(feature_list)['coordinates']
+        for part in json1_data:
+            # Create two PolygonPoint objects from the the first two Points in the polygon
+            sub_part = part[0]
+            for i_next, temp_pnt in enumerate(sub_part[:-1]):
+                # this loop creates new PolygonPoint object (the next index) and update all rest
+                # points of the current  PolygonPoint object (the current index)
+                # than put it into the database and update the temp variables for the next loop
+                next_pnt = sub_part[i_next + 1]
+                if next_pnt == temp_pnt:
+                    continue
+                new_line = LineString([temp_pnt, next_pnt])
+                geo_data_base.add_line(new_line)
+    print(f'Finished in {time.time() - start} seconds')
+    print(len(geo_data_base[[15, 15]].lines))
     # calculate sight line
     # First, upload the gis file to remove old sight lines and make it ready for new sight lines
 
@@ -451,3 +444,14 @@ if __name__ == "__main__":
     # Exit applications
     QgsApplication.exitQgis()
     app.exit()
+
+    # with concurrent.futures.ThreadPoolExecutor() as executor:
+    #     executor.map(geo_data_base.function1, input_layers[0].getFeatures())
+
+    # for num_of_pnts in range(10, 100, 10):
+    #     # input_constrains = 'test_same_area/multiparts.shp'
+    #     processing.run("native:randompointsinextent",
+    #                    {'EXTENT': '-17237.309800000,-9059.566200000,6710225.601400000,6716296.502700000 [EPSG:3857]',
+    #                     'POINTS_NUMBER': 10, 'MIN_DISTANCE': 0, 'TARGET_CRS': QgsCoordinateReferenceSystem('EPSG:3857'),
+    #                     'MAX_ATTEMPTS': 200,
+    #                     'OUTPUT': 'code_test.shp'})
