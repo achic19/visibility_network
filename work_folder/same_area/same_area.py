@@ -4,16 +4,14 @@ import os
 import sys
 import math
 from operator import itemgetter
-
+import numpy
 from PyQt5.QtGui import *
 # from test_same_area.test_same_area import test_same_area_grid
 from qgis.PyQt.QtCore import QVariant
 from qgis.core import *
 from shapely.geometry import Point
 from shapely.geometry import LineString
-from PolygonPoint import PolygonPoint
-from sym_matrix import *
-from is_intersect import *
+
 import time
 import concurrent.futures
 
@@ -62,11 +60,12 @@ class SameAreaCell:
             [Cell(self.x_min + ii * self.size_cell, self.y_min + j * self.size_cell, self.size_cell, ii, j) for j in
              range(n_y)] for ii in range(n_x)]
 
-    def __getitem__(self, x, y):
+    def __getitem__(self, p):
         """
         :param inds: tuple of indices
         :return: a cell from the dataset based on the indices
         """
+        x, y = p
         return self.data_set[x][y]
 
     # this method increments the number of points in our database by 1
@@ -85,9 +84,9 @@ class SameAreaCell:
         in_y = ((numpy.array([bounding.yMinimum(), bounding.yMaximum()]) - self.y_min) / self.size_cell).astype(int)
         [[self[x, y].poly.append(cur_poly) for x in range(in_x[0], in_x[1] + 1)] for y in range(in_y[0], in_y[1] + 1)]
 
-    def find_cell(self, pnt: Point):
-        in_x = int((pnt.x - self.x_min) / self.size_cell)
-        in_y = int((pnt.y - self.y_min) / self.size_cell)
+    def find_cell(self, pnt: QgsPointXY):
+        in_x = int((pnt[0] - self.x_min) / self.size_cell)
+        in_y = int((pnt[1] - self.y_min) / self.size_cell)
         return [in_x, in_y]
 
     def create_grid_shapefile(self):
@@ -117,8 +116,8 @@ class SameAreaCell:
                 feat.setGeometry(
                     QgsGeometry().fromPolygonXY([list(cell.extent.values())]))  # Set geometry for the current id
                 print(list(cell.extent.values()))
-                feat.setAttributes([my_id, cell.i_e, cell.i_n, len(cell.lines)])  # Set attributes for the current id
-                print('{},{} :{}'.format(cell.i_e, cell.i_n, len(cell.lines)))
+                feat.setAttributes([my_id, cell.i_e, cell.i_n, len(cell.poly)])  # Set attributes for the current id
+                print('{},{} :{}'.format(cell.i_e, cell.i_n, len(cell.poly)))
                 prov.addFeatures([feat])
                 my_id += 1
         # Update fields for the vector grid
@@ -126,7 +125,7 @@ class SameAreaCell:
 
 
 class FindSightLine:
-    def __init__(self, start_line: Point, end_line: Point, cur_cell: list, end_cell: list, data_base: SameAreaCell):
+    def __init__(self, cur_line: QgsGeometry, cur_cell: list, end_cell: list, data_base: SameAreaCell):
         """
         It checks and builds a sight line between two points
         :param start_line:
@@ -136,8 +135,8 @@ class FindSightLine:
         :param data_base:
         """
 
-        self.start_line = start_line
-        self.end_line = end_line
+        self.test_line = cur_line
+
         self.cur_cell = cur_cell
         self.end_cell = end_cell
         self.data_base = data_base
@@ -233,8 +232,8 @@ class FindSightLine:
         :return:
         """
         cur_cell = self.data_base[self.cur_cell]
-        for line in cur_cell:
-            if doIntersect(self.start_line, self.end_line, pnt1, pnt2):
+        for poly in cur_cell:
+            if self.test_line.crosses(poly):
                 return True
         return False
 
@@ -301,9 +300,10 @@ if __name__ == "__main__":
 
     # if Necessary create grid
     # geo_data_base.create_grid_shapefile()
+    start = time.time()
     [geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()) for feature in
      input_layers[0].getFeatures()]
-
+    print(f'Finished in {time.time() - start} seconds')
     # start = time.time()
     # print(f'Finished in {time.time() - start} seconds')
 
@@ -311,43 +311,44 @@ if __name__ == "__main__":
     # First, upload the gis file to remove old sight lines and make it ready for new sight lines
     #
     # In this list all the new features (sight lines) will be stored
-    # feats = []
-    # inter_pnt_list = [Point(feature.geometry().asPoint()) for feature in input_layers[1].getFeatures()]
-    # # save the cell location of each point in another array
-    # inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
+    feats = []
+    inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[1].getFeatures()]
+    # save the cell location of each point in another array
+    inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
     #
     # # Code for performance:
     # # my_time = 0
     # # n = len(inter_pnt_list)
     # # run_max = (n * (n + 1)) / 2
-    # for index_i, point_start in enumerate(inter_pnt_list[:-1]):
-    #     # print(index_i)
-    #     index_j = index_i
-    #     for point_end in inter_pnt_list[index_i + 1:]:
-    #         # my_time += 1
-    #         # print("Progress {:3.2%}".format(my_time / run_max))
-    #         cell_first = inter_cell_list[index_i].copy()
-    #         index_j += 1
-    #         # print(index_j)
-    #         # if the two points are the same
-    #         if point_start == point_end:
-    #             continue
-    #         # Call to FindSightLine class to check if sight line is exist
-    #
-    #         cell_end = inter_cell_list[index_j]
-    #         if FindSightLine(point_start, point_end, cell_first, cell_end, geo_data_base).is_sight_line:
-    #             feat = QgsFeature()
-    #             feat.setGeometry(
-    #                 QgsGeometry().fromPolylineXY([QgsPointXY(point_start.x, point_start.y), QgsPointXY(point_end.x,
-    #                                                                                                    point_end.y)]))
-    #             feat.setAttributes([1, 2, 3])  # Set attributes for the current id
-    #             feats.append(feat)
-    #
-    # # print(time.time() - start)
-    # path = "sight_line.shp"
-    # sight_line = QgsVectorLayer(path, "sight_line", "ogr")
-    # sight_line.dataProvider().truncate()
-    # sight_line.dataProvider().addFeatures(feats)
+    for index_i, point_start in enumerate(inter_pnt_list[:-1]):
+        # print(index_i)
+        index_j = index_i
+        for point_end in inter_pnt_list[index_i + 1:]:
+
+            # my_time += 1
+            # print("Progress {:3.2%}".format(my_time / run_max))
+            cell_first = inter_cell_list[index_i].copy()
+            index_j += 1
+            # print(index_j)
+            # if the two points are the same
+            if point_start == point_end:
+                continue
+            # Call to FindSightLine class to check if sight line is exist
+            cell_end = inter_cell_list[index_j]
+            test_line = QgsGeometry.fromPolylineXY([point_start, point_end])
+            if FindSightLine(test_line, cell_first, cell_end, geo_data_base).is_sight_line:
+                feat = QgsFeature()
+                feat.setGeometry(
+                    QgsGeometry().fromPolylineXY([QgsPointXY(point_start.x, point_start.y), QgsPointXY(point_end.x,
+                                                                                                       point_end.y)]))
+                feat.setAttributes([1, 2, 3])  # Set attributes for the current id
+                feats.append(feat)
+
+    # print(time.time() - start)
+    path = "sight_line.shp"
+    sight_line = QgsVectorLayer(path, "sight_line", "ogr")
+    sight_line.dataProvider().truncate()
+    sight_line.dataProvider().addFeatures(feats)
 
     # create line for other points in the list
     """For standalone application"""
