@@ -134,9 +134,7 @@ class FindSightLine:
         :param end_cell:
         :param data_base:
         """
-
         self.test_line = cur_line
-
         self.cur_cell = cur_cell
         self.end_cell = end_cell
         self.data_base = data_base
@@ -162,7 +160,9 @@ class FindSightLine:
             # A pivot variable is a dictionary.
             # {pointer to the one of the cell corners:
             # [optional next cell: the examined azimuth is smaller/same/larger]}
-            self.azi_line = azimuth_calculator(self.start_line, self.end_line)
+            cur_line_0 = self.test_line.asPolyline()
+            self.start_line = cur_line_0[0]
+            self.azi_line = azimuth_calculator(self.start_line, cur_line_0[1])
             if 0 < self.azi_line < 90:
                 self.pivot = {'NE': [(0, 1), (1, 1), (1, 0)]}
             elif 90 < self.azi_line < 180:
@@ -193,27 +193,22 @@ class FindSightLine:
         that are selected based on the direction in the pivot dictionary and the line azimuth.
         :return:
         """
-        key = list(self.pivot.keys())[0]
-        pivot_point = self.data_base[self.cur_cell].extent[key]
-        ex_az = azimuth_calculator(self.start_line, Point(pivot_point))
+        while self.cur_cell != self.end_cell:
+            key = list(self.pivot.keys())[0]
+            pivot_point = self.data_base[self.cur_cell].extent[key]
+            ex_az = azimuth_calculator(self.start_line, pivot_point)
 
-        if ex_az < self.azi_line:
-            self.find_next_cell(self.pivot_list[0][2])
+            if ex_az < self.azi_line:
+                self.find_next_cell(self.pivot_list[0][2])
 
-        elif ex_az == self.azi_line:
-            self.find_next_cell(self.pivot_list[0][1])
-        else:
-            self.find_next_cell(self.pivot_list[0][0])
-
-        # calculate_intersection
-        if self.calculate_intersections():
-            self.is_sight_line = False
-            return
-        # the next step (if the two cells are not the same check the next cell)
-        if self.cur_cell == self.end_cell:
-            return
-        else:
-            self.loop_over_cell_with_pivot()
+            elif ex_az == self.azi_line:
+                self.find_next_cell(self.pivot_list[0][1])
+            else:
+                self.find_next_cell(self.pivot_list[0][0])
+            # calculate_intersection
+            if self.calculate_intersections():
+                self.is_sight_line = False
+                break
 
     def find_next_cell(self, values: tuple):
         """
@@ -262,14 +257,14 @@ def upload_new_layer(path, name):
     return layer
 
 
-def azimuth_calculator(pnt1: Point, pnt2: Point) -> float:
+def azimuth_calculator(pnt1: QgsPointXY, pnt2: QgsPointXY) -> float:
     """
     Calculate and return azimuth by two points
     :param pnt1:
     :param pnt2:
     :return:
     """
-    azimuth = math.degrees(math.atan2(pnt2.x - pnt1.x, pnt2.y - pnt1.y))
+    azimuth = pnt1.azimuth(pnt2)
     if azimuth < 0:
         azimuth += 360
     return azimuth
@@ -303,7 +298,7 @@ if __name__ == "__main__":
     start = time.time()
     [geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()) for feature in
      input_layers[0].getFeatures()]
-    print(f'Finished in {time.time() - start} seconds')
+
     # start = time.time()
     # print(f'Finished in {time.time() - start} seconds')
 
@@ -338,9 +333,7 @@ if __name__ == "__main__":
             test_line = QgsGeometry.fromPolylineXY([point_start, point_end])
             if FindSightLine(test_line, cell_first, cell_end, geo_data_base).is_sight_line:
                 feat = QgsFeature()
-                feat.setGeometry(
-                    QgsGeometry().fromPolylineXY([QgsPointXY(point_start.x, point_start.y), QgsPointXY(point_end.x,
-                                                                                                       point_end.y)]))
+                feat.setGeometry(test_line)
                 feat.setAttributes([1, 2, 3])  # Set attributes for the current id
                 feats.append(feat)
 
@@ -349,7 +342,7 @@ if __name__ == "__main__":
     sight_line = QgsVectorLayer(path, "sight_line", "ogr")
     sight_line.dataProvider().truncate()
     sight_line.dataProvider().addFeatures(feats)
-
+    print(f'Finished in {time.time() - start} seconds')
     # create line for other points in the list
     """For standalone application"""
     # Exit applications
