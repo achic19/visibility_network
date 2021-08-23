@@ -11,7 +11,7 @@ from qgis.PyQt.QtCore import QVariant
 from qgis.core import *
 from shapely.geometry import Point
 from shapely.geometry import LineString
-
+from qgis.analysis import QgsNativeAlgorithms
 import time
 import concurrent.futures
 
@@ -30,7 +30,6 @@ class Cell:
         :param i_x: cell index in x direction
         :param i_y: cell index in y direction
         """
-        # print("x-{}, y-{}".format(i_x, i_y))
         self.poly = []
         self.extent = {'SW': QgsPointXY(x, y), 'SE': QgsPointXY(x + spacing, y),
                        'NE': QgsPointXY(x + spacing, y + spacing), 'NW': QgsPointXY(x, y + spacing)}
@@ -62,22 +61,17 @@ class SameAreaCell:
 
     def __getitem__(self, p):
         """
-        :param inds: tuple of indices
+        :param p: tuple of indices
         :return: a cell from the dataset based on the indices
         """
         x, y = p
         return self.data_set[x][y]
 
-    # this method increments the number of points in our database by 1
-    def increment_num_pnts(self):
-        self.num_of_pnt += 1
-        return self.num_of_pnt
-
     def add_polygons(self, bounding: QgsRectangle, cur_poly: QgsGeometry):
         """
-
-        :param bounding:
-        :param cur_poly:
+        add a polygon to all cells that cross the polygon
+        :param bounding: polygon rectangle extent
+        :param cur_poly: the polygon to add
         :return:
         """
         in_x = ((numpy.array([bounding.xMinimum(), bounding.xMaximum()]) - self.x_min) / self.size_cell).astype(int)
@@ -270,18 +264,67 @@ def azimuth_calculator(pnt1: QgsPointXY, pnt2: QgsPointXY) -> float:
     return azimuth
 
 
+def create_sight_lines():
+    '''
+    :param final: layer of points to calculate sight of lines
+    :return: success or fail massage
+    '''
+    """create lines based on the intersections"""
+
+    # Upload intersection layers
+    # Save points with python dataset
+    input_layer = upload_new_layer('intersections.shp', 'file')
+    junctions_features = input_layer.getFeatures()
+    # Get the geometry of each element into a list
+    python_geo = list(map(lambda x: x.geometry(), junctions_features))
+    # Populate line file with potential sight of lines
+    layer_path = 'performance/new_line.shp'
+    layer = upload_new_layer(layer_path, "layer")
+    layer.dataProvider().truncate()
+
+    fields = QgsFields()
+    fields.append(QgsField("from", QVariant.Int))
+    fields.append(QgsField("to", QVariant.Int))
+    feature_list = []
+    for i, feature in enumerate(python_geo):
+        for j in range(i + 1, len(python_geo)):
+            # Add geometry to lines' features  - the nodes of each line
+            feat = QgsFeature()
+            point1 = feature.asPoint()
+            point2 = python_geo[j].asPoint()
+            gLine = QgsGeometry.fromPolylineXY([point1, point2])
+            feat.setGeometry(gLine)
+            # Add  the nodes id as attributes to lines' features
+            feat.setFields(fields)
+            feat.setAttributes([i, j])
+            feature_list.append(feat)
+    layer.dataProvider().addFeatures(feature_list)
+
+    """Run native algorithm ( in C++) to find sight line)"""
+
+    intersect = 'constrains.shp'
+    line_path = 'performance/new_line.shp'
+    sight_line_output = 'performance/_sight_line_classic.shp'
+    params = {'INPUT': line_path, 'PREDICATE': [2], 'INTERSECT': intersect,
+              'OUTPUT': sight_line_output}
+    processing.run('native:extractbylocation', params)
+
+
 if __name__ == "__main__":
     # Start new Qgis application
     app = QGuiApplication([])
     QgsApplication.setPrefixPath(r'C:\Program Files\QGIS 3.0\apps\qgis', True)
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     QgsApplication.initQgis()
-
+    # the classic code
+    start = time.time()
+    create_sight_lines()
+    print(f'The classic code - Finished in {time.time() - start} seconds')
     # Input
+    start = time.time()
     input_constrains = 'constrains.shp'
     input_in = 'intersections.shp'
-
     input_layers = [upload_new_layer(input_constrains, 'file'), upload_new_layer(input_in, 'file')]
-
     # Get  the layers' rectangle extent
     rectangle_points = []
     for input_layer in input_layers:
@@ -295,36 +338,23 @@ if __name__ == "__main__":
 
     # if Necessary create grid
     # geo_data_base.create_grid_shapefile()
-    start = time.time()
+
     [geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()) for feature in
      input_layers[0].getFeatures()]
 
-    # start = time.time()
-    # print(f'Finished in {time.time() - start} seconds')
-
     # calculate sight line
-    # First, upload the gis file to remove old sight lines and make it ready for new sight lines
-    #
     # In this list all the new features (sight lines) will be stored
     feats = []
     inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[1].getFeatures()]
     # save the cell location of each point in another array
     inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
     #
-    # # Code for performance:
-    # # my_time = 0
-    # # n = len(inter_pnt_list)
-    # # run_max = (n * (n + 1)) / 2
     for index_i, point_start in enumerate(inter_pnt_list[:-1]):
         # print(index_i)
         index_j = index_i
         for point_end in inter_pnt_list[index_i + 1:]:
-
-            # my_time += 1
-            # print("Progress {:3.2%}".format(my_time / run_max))
             cell_first = inter_cell_list[index_i].copy()
             index_j += 1
-            # print(index_j)
             # if the two points are the same
             if point_start == point_end:
                 continue
@@ -337,12 +367,12 @@ if __name__ == "__main__":
                 feat.setAttributes([1, 2, 3])  # Set attributes for the current id
                 feats.append(feat)
 
-    # print(time.time() - start)
+    # upload the gis file to remove old sight lines and make it ready for new sight lines
     path = "sight_line.shp"
     sight_line = QgsVectorLayer(path, "sight_line", "ogr")
     sight_line.dataProvider().truncate()
     sight_line.dataProvider().addFeatures(feats)
-    print(f'Finished in {time.time() - start} seconds')
+    print(f'The new code - Finished in {time.time() - start} seconds')
     # create line for other points in the list
     """For standalone application"""
     # Exit applications
