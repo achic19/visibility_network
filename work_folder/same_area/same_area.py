@@ -316,10 +316,7 @@ if __name__ == "__main__":
     QgsApplication.setPrefixPath(r'C:\Program Files\QGIS 3.0\apps\qgis', True)
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     QgsApplication.initQgis()
-    # the classic code
-    start = time.time()
-    create_sight_lines()
-    print(f'The classic code - Finished in {time.time() - start} seconds')
+
     # Input
     start = time.time()
     input_constrains = 'constrains.shp'
@@ -348,7 +345,11 @@ if __name__ == "__main__":
     inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[1].getFeatures()]
     # save the cell location of each point in another array
     inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
-    #
+
+    # Field schema
+    fields = QgsFields()
+    fields.append(QgsField("from", QVariant.Int))
+    fields.append(QgsField("to", QVariant.Int))
     for index_i, point_start in enumerate(inter_pnt_list[:-1]):
         # print(index_i)
         index_j = index_i
@@ -364,7 +365,8 @@ if __name__ == "__main__":
             if FindSightLine(test_line, cell_first, cell_end, geo_data_base).is_sight_line:
                 feat = QgsFeature()
                 feat.setGeometry(test_line)
-                feat.setAttributes([1, 2, 3])  # Set attributes for the current id
+                feat.setFields(fields)
+                feat.setAttributes([index_i, index_j])  # Set attributes for the current id
                 feats.append(feat)
 
     # upload the gis file to remove old sight lines and make it ready for new sight lines
