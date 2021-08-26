@@ -70,7 +70,7 @@ class SightLine:
 
     @staticmethod
     def reproject(layers_to_project_path, target_crs='EPSG:3857',
-                  names_list=['constrains', 'pois','networks'], relative_folder='work_folder/general/'):
+                  names_list=['constrains', 'pois', 'networks'], relative_folder='work_folder/general/'):
         '''
         :param layers_to_project_path: list of layer to project
         :param target_crs: to project
@@ -195,66 +195,6 @@ class SightLine:
         params = {'LAYERS': merge_layers, 'CRS': 'EPSG:3857', 'OUTPUT': self.junc_loc}
 
         processing.run('native:mergevectorlayers', params, feedback=feedback)
-
-    def create_sight_lines_pot(self, final, restricted, restricted_length):
-        '''
-
-        :param restricted_length: What is the max permitted distance
-        :param restricted: is a restricted length is checked or not
-        :param final: layer of points to calculate sight of lines
-        :return: success or fail massage
-        '''
-        """create lines based on the intersections"""
-
-        # Upload intersection layers
-        self.layers[0] = self.upload_new_layer(final, "all_pnts")
-        # Save points with python dataset
-        junctions_features = self.layers[0].getFeatures()
-        # Get the geometry of each element into a list
-        python_geo = list(map(lambda x: x.geometry(), junctions_features))
-        # Populate line file with potential sight of lines
-        layer_path = os.path.dirname(__file__) + r'/work_folder/new_lines.shp'
-        layer = self.upload_new_layer(layer_path, "layer")
-        layer.dataProvider().truncate()
-
-        fields = QgsFields()
-        fields.append(QgsField("from", QVariant.Int))
-        fields.append(QgsField("to", QVariant.Int))
-        feature_list = []
-        for i, feature in enumerate(python_geo):
-            for j in range(i + 1, len(python_geo)):
-                # Add geometry to lines' features  - the nodes of each line
-                feat = QgsFeature()
-                point1 = feature.asPoint()
-                point2 = python_geo[j].asPoint()
-                # in case of restricted weight, check if the current disstance between two points is larger than
-                # allowed
-                if restricted:
-                    # Create a measure object
-                    distance = QgsDistanceArea()
-
-                    # Measure the distance
-                    m = distance.measureLine(point1, point2)
-                    if m > restricted_length:
-                        continue
-                gLine = QgsGeometry.fromPolylineXY([point1, point2])
-                feat.setGeometry(gLine)
-                # Add  the nodes id as attributes to lines' features
-                feat.setFields(fields)
-                feat.setAttributes([i, j])
-                feature_list.append(feat)
-        layer.dataProvider().addFeatures(feature_list)
-
-    def find_sight_line(self):
-        """Run native algorithm ( in C++) to find sight line)"""
-
-        intersect = os.path.dirname(__file__) + r'\work_folder\general\constrains.shp'
-        line_path = os.path.dirname(__file__) + r'/work_folder/new_lines.shp'
-        sight_line_output = os.path.join(self.res_folder, r'sight_line.shp')
-        params = {'INPUT': line_path, 'PREDICATE': [2], 'INTERSECT': intersect,
-                  'OUTPUT': sight_line_output}
-        self.res = processing.run('native:extractbylocation', params, feedback=self.feedback)
-        self.layers[1] = self.upload_new_layer(self.res['OUTPUT'], "_sight_line")
 
     def create_gdf_file(self, weight, graph_name, is_sight_line: int):
         """

@@ -137,16 +137,16 @@ class FindSightLine:
         # If the current line intersects polygon lines, this line is not sight line
         if self.calculate_intersections():
             self.is_sight_line = False
-        elif cell_first == cell_end:
+        elif cur_cell == end_cell:
             pass
         # if the points have the same index horizontally or vertically
-        elif cell_first[0] == cell_end[0]:
-            if cell_first[1] > cell_end[1]:
+        elif cur_cell[0] == end_cell[0]:
+            if cur_cell[1] > end_cell[1]:
                 self.loop_over_horizontal_vertical_cells(1, -1)
             else:
                 self.loop_over_horizontal_vertical_cells(1, 1)
-        elif cell_first[1] == cell_end[1]:
-            if cell_first[0] > cell_end[0]:
+        elif cur_cell[1] == end_cell[1]:
+            if cur_cell[0] > end_cell[0]:
                 self.loop_over_horizontal_vertical_cells(0, -1)
             else:
                 self.loop_over_horizontal_vertical_cells(0, 1)
@@ -310,100 +310,80 @@ def create_sight_lines():
     processing.run('native:extractbylocation', params)
 
 
+class SightLineDB:
+    def __init__(self, input_constrains: str, input_in: str, restricted: bool, restricted_length: int):
+        """
+        The start point of the algorithm
+        :param input_constrains: path to constrains shape file
+        :param input_in: path to intersections shape file
+        :param restricted: if int,only  sight line shorter than that int will calculated
+        """
+        # Input
+
+        input_layers = [upload_new_layer(input_constrains, 'file'), upload_new_layer(input_in, 'file')]
+        # Get  the layers' rectangle extent
+        rectangle_points = []
+        for input_layer in input_layers:
+            extent = input_layer.extent()
+            rectangle_points.append((extent.xMaximum(), extent.yMaximum()))
+            rectangle_points.append((extent.xMinimum(), extent.yMinimum()))
+
+        # Build SameAreaCell object
+        size_cell = 50
+        geo_data_base = SameAreaCell(rectangle_points, size_cell)
+
+        # if Necessary create grid
+        # geo_data_base.create_grid_shapefile()
+
+        [geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()) for feature in
+         input_layers[0].getFeatures()]
+
+        # calculate sight line
+        # In this list all the new features (sight lines) will be stored
+        feats = []
+        inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[1].getFeatures()]
+        # save the cell location of each point in another array
+        inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
+
+        for index_i, point_start in enumerate(inter_pnt_list[:-1]):
+            # print(index_i)
+            index_j = index_i
+            for point_end in inter_pnt_list[index_i + 1:]:
+                cell_first = inter_cell_list[index_i].copy()
+                index_j += 1
+                # if the two points are the same
+                if point_start == point_end:
+                    continue
+                # If there is limitation on the max distance, make sure the distance is shorter than that
+                if restricted and point_start.distance(point_end) > restricted_length:
+                    continue
+                # Call to FindSightLine class to check if sight line is exist
+                cell_end = inter_cell_list[index_j]
+                test_line = QgsGeometry.fromPolylineXY([point_start, point_end])
+                if FindSightLine(test_line, cell_first, cell_end, geo_data_base).is_sight_line:
+                    feat = QgsFeature()
+                    feat.setGeometry(test_line)
+                    feat.setAttributes([index_i, index_j])  # Set attributes for the current id
+                    feats.append(feat)
+
+        # upload the gis file to remove old sight lines and make it ready for new sight lines
+        path = "sight_line.shp"
+        sight_line = QgsVectorLayer(path, "sight_line", "ogr")
+        sight_line.dataProvider().truncate()
+        sight_line.dataProvider().addFeatures(feats)
+
+
 if __name__ == "__main__":
     # Start new Qgis application
     app = QGuiApplication([])
     QgsApplication.setPrefixPath(r'C:\Program Files\QGIS 3.0\apps\qgis', True)
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     QgsApplication.initQgis()
-
-    # Input
     start = time.time()
-    input_constrains = 'constrains.shp'
-    input_in = 'intersections.shp'
-    input_layers = [upload_new_layer(input_constrains, 'file'), upload_new_layer(input_in, 'file')]
-    # Get  the layers' rectangle extent
-    rectangle_points = []
-    for input_layer in input_layers:
-        extent = input_layer.extent()
-        rectangle_points.append((extent.xMaximum(), extent.yMaximum()))
-        rectangle_points.append((extent.xMinimum(), extent.yMinimum()))
-
-    # Build SameAreaCell object
-    size_cell = 50
-    geo_data_base = SameAreaCell(rectangle_points, size_cell)
-
-    # if Necessary create grid
-    # geo_data_base.create_grid_shapefile()
-
-    [geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()) for feature in
-     input_layers[0].getFeatures()]
-
-    # calculate sight line
-    # In this list all the new features (sight lines) will be stored
-    feats = []
-    inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[1].getFeatures()]
-    # save the cell location of each point in another array
-    inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
-
-    # Field schema
-    fields = QgsFields()
-    fields.append(QgsField("from", QVariant.Int))
-    fields.append(QgsField("to", QVariant.Int))
-    for index_i, point_start in enumerate(inter_pnt_list[:-1]):
-        # print(index_i)
-        index_j = index_i
-        for point_end in inter_pnt_list[index_i + 1:]:
-            cell_first = inter_cell_list[index_i].copy()
-            index_j += 1
-            # if the two points are the same
-            if point_start == point_end:
-                continue
-            # Call to FindSightLine class to check if sight line is exist
-            cell_end = inter_cell_list[index_j]
-            test_line = QgsGeometry.fromPolylineXY([point_start, point_end])
-            if FindSightLine(test_line, cell_first, cell_end, geo_data_base).is_sight_line:
-                feat = QgsFeature()
-                feat.setGeometry(test_line)
-                feat.setFields(fields)
-                feat.setAttributes([index_i, index_j])  # Set attributes for the current id
-                feats.append(feat)
-
-    # upload the gis file to remove old sight lines and make it ready for new sight lines
-    path = "sight_line.shp"
-    sight_line = QgsVectorLayer(path, "sight_line", "ogr")
-    sight_line.dataProvider().truncate()
-    sight_line.dataProvider().addFeatures(feats)
+    SightLineDB('constrains.shp', 'intersections.shp', True, 200)
     print(f'The new code - Finished in {time.time() - start} seconds')
     # create line for other points in the list
     """For standalone application"""
     # Exit applications
     QgsApplication.exitQgis()
     app.exit()
-
-    # with concurrent.futures.ThreadPoolExecutor() as executor:
-    #     executor.map(geo_data_base.function1, input_layers[0].getFeatures())
-
-    # for num_of_pnts in range(10, 100, 10):
-    #     # input_constrains = 'test_same_area/multiparts.shp'
-    #     processing.run("native:randompointsinextent",
-    #                    {'EXTENT': '-17237.309800000,-9059.566200000,6710225.601400000,6716296.502700000 [EPSG:3857]',
-    #                     'POINTS_NUMBER': 10, 'MIN_DISTANCE': 0, 'TARGET_CRS': QgsCoordinateReferenceSystem('EPSG:3857'),
-    #                     'MAX_ATTEMPTS': 200,
-    #                     'OUTPUT': 'code_test.shp'})
-
-    # def function1(self, feature):
-    #     feature_list = feature.geometry().asJson()
-    #     json1_data = json.loads(feature_list)['coordinates']
-    #     for part in json1_data:
-    #         # Create two PolygonPoint objects from the the first two Points in the polygon
-    #         sub_part = part[0]
-    #         for i_next, temp_pnt in enumerate(sub_part[:-1]):
-    #             # this loop creates new PolygonPoint object (the next index) and update all rest
-    #             # points of the current  PolygonPoint object (the current index)
-    #             # than put it into the database and update the temp variables for the next loop
-    #             next_pnt = sub_part[i_next + 1]
-    #             if next_pnt == temp_pnt:
-    #                 continue
-    #             new_line = LineString([temp_pnt, next_pnt])
-    #             self.add_line(new_line)

@@ -41,6 +41,7 @@ from .work_folder.mean_close_point.mean_close_point import *
 from .work_folder.POI.merge_points import *
 from .create_sight_line import *
 from plugins.processing.algs.qgis.LinesToPolygons import *
+from .work_folder.same_area.same_area import *
 
 
 class PoiVisibilityNetwork:
@@ -487,18 +488,13 @@ class PoiVisibilityNetwork:
                 final = os.path.join(os.path.dirname(__file__), r'work_folder\mean_close_point\results_file\final.shp')
 
         # Calc sight lines
-        if self.processing_option == 1:
-            my_sight_line.create_sight_lines_pot(final, restricted=restricted
-                                                 , restricted_length=restricted_length)
-
         # calc sight lines directly from the user input ( after projection)
         elif self.processing_option == 2:
             my_sight_line = SightLine(constrains=constrains, res_folder=res_folder, project=NULL)
             final = os.path.join(os.path.dirname(__file__), r'work_folder\general\pois.shp')
-            my_sight_line.create_sight_lines_pot(final, restricted=restricted
-                                                 , restricted_length=restricted_length)
+
         if self.processing_option != 3:
-            my_sight_line.find_sight_line()
+            SightLineDB(constrains, final, restricted, restricted_length)
         # copy sight nodes file to result folder
         my_sight_line.copy_shape_file_to_result_file(final, 'sight_node')
         # Add  new fields that store information about points type and id point
