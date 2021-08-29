@@ -494,7 +494,7 @@ class PoiVisibilityNetwork:
             final = os.path.join(os.path.dirname(__file__), r'work_folder\general\pois.shp')
 
         if self.processing_option != 3:
-            SightLineDB(constrains, final, restricted, restricted_length)
+            SightLineDB(constrains, final, restricted, restricted_length,res_folder)
         # copy sight nodes file to result folder
         my_sight_line.copy_shape_file_to_result_file(final, 'sight_node')
         # Add  new fields that store information about points type and id point

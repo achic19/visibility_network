@@ -13,6 +13,7 @@ from shapely.geometry import Point
 from shapely.geometry import LineString
 from qgis.analysis import QgsNativeAlgorithms
 import time
+from shutil import copy
 import concurrent.futures
 
 # Reference the algorithm you want to run
@@ -311,12 +312,14 @@ def create_sight_lines():
 
 
 class SightLineDB:
-    def __init__(self, input_constrains: str, input_in: str, restricted: bool, restricted_length: int):
+    def __init__(self, input_constrains: str, input_in: str, restricted: bool, restricted_length: int, folder: str):
         """
         The start point of the algorithm
         :param input_constrains: path to constrains shape file
         :param input_in: path to intersections shape file
-        :param restricted: if int,only  sight line shorter than that int will calculated
+        :param restricted: whether is there any restriction on the the sight line length
+        :param restricted_length: if restricted is true,only  sight line shorter than that int will calculated
+        :param folder: where to solve the results
         """
         # Input
 
@@ -367,10 +370,13 @@ class SightLineDB:
                     feats.append(feat)
 
         # upload the gis file to remove old sight lines and make it ready for new sight lines
-        path = "sight_line.shp"
-        sight_line = QgsVectorLayer(path, "sight_line", "ogr")
+        path = os.path.join(os.path.dirname(__file__), 'sight_line')
+        sight_line = QgsVectorLayer(path + '.shp', "sight_line", "ogr")
         sight_line.dataProvider().truncate()
         sight_line.dataProvider().addFeatures(feats)
+
+        # save the results into the specified folder
+        [copy('.'.join((path, file_ext)), folder) for file_ext in ('dbf', 'prj', 'shp', 'shx')]
 
 
 if __name__ == "__main__":
@@ -380,7 +386,7 @@ if __name__ == "__main__":
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     QgsApplication.initQgis()
     start = time.time()
-    SightLineDB('constrains.shp', 'intersections.shp', True, 200)
+    SightLineDB('constrains.shp', 'intersections.shp', False, 0, 'test_same_area')
     print(f'The new code - Finished in {time.time() - start} seconds')
     # create line for other points in the list
     """For standalone application"""
