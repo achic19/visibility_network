@@ -277,8 +277,11 @@ class PoiVisibilityNetwork:
         self.dlg.label.setEnabled(flag_streets)
         if self.processing_option == 2:
             self.dlg.label_4.setText('Select points layer')
+            self.dlg.comboBox_3.setEnabled(True)
         else:
             self.dlg.label_4.setText('Select  POI')
+            if self.dlg.radioButton_5.isChecked():
+                self.dlg.comboBox_3.setEnabled(False)
 
         # # Distance Options
         self.dlg.checkBox_3.setEnabled(flag_streets)
@@ -322,13 +325,6 @@ class PoiVisibilityNetwork:
         if not self.layers:
             self.iface.messageBar().pushMessage('No layers in layers list', level=Qgis.Critical)
             return
-
-        # # Remove files created by this plugin
-        # for layer in self.layers:
-        #     if str(layer.sourceName()) == 'sight_line':
-        #         self.iface.messageBar().pushMessage('11111', level=Qgis.Info)
-        #     else:
-        #         self.iface.messageBar().pushMessage(str(layer.sourceName()), level=Qgis.Info)
 
         # Clear comboBox (useful so we don't create duplicate items in list)
         self.dlg.comboBox_1.clear()
@@ -387,7 +383,7 @@ class PoiVisibilityNetwork:
             else:
                 weight = 0
             # handle restricted vision
-            if self.dlg.checkBox.isChecked():
+            if self.dlg.checkBox.isChecked() and not self.dlg.radioButton_3.isChecked():
                 restricted = 1
                 try:
                     restricted_length = float(self.dlg.lineEdit_2.text())
@@ -399,7 +395,7 @@ class PoiVisibilityNetwork:
                 restricted_length = 0
 
             # handle aggregation distance
-            if self.dlg.checkBox_3.isChecked():
+            if self.dlg.checkBox_3.isChecked() and self.graph_to_draw != 'poi' and not self.dlg.radioButton.isChecked():
                 try:
                     aggr_dist = float(self.dlg.lineEdit_3.text())
                 except ValueError:
@@ -494,7 +490,7 @@ class PoiVisibilityNetwork:
             final = os.path.join(os.path.dirname(__file__), r'work_folder\general\pois.shp')
 
         if self.processing_option != 3:
-            SightLineDB(constrains, final, restricted, restricted_length,res_folder)
+            SightLineDB(constrains, final, restricted, restricted_length, res_folder)
         # copy sight nodes file to result folder
         my_sight_line.copy_shape_file_to_result_file(final, 'sight_node')
         # Add  new fields that store information about points type and id point
