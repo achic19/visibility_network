@@ -77,7 +77,10 @@ class SameAreaCell:
         """
         in_x = ((numpy.array([bounding.xMinimum(), bounding.xMaximum()]) - self.x_min) / self.size_cell).astype(int)
         in_y = ((numpy.array([bounding.yMinimum(), bounding.yMaximum()]) - self.y_min) / self.size_cell).astype(int)
-        [[self[x, y].poly.append(cur_poly) for x in range(in_x[0], in_x[1] + 1)] for y in range(in_y[0], in_y[1] + 1)]
+        try:
+            [[self[x, y].poly.append(cur_poly) for x in range(in_x[0], in_x[1] + 1)] for y in range(in_y[0], in_y[1] + 1)]
+        except:
+            pass
 
     def find_cell(self, pnt: QgsPointXY):
         in_x = int((pnt[0] - self.x_min) / self.size_cell)
@@ -386,7 +389,9 @@ if __name__ == "__main__":
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     QgsApplication.initQgis()
     start = time.time()
-    SightLineDB('constrains.shp', 'intersections.shp', False, 0, 'test_same_area')
+    constrains = os.path.join(os.path.realpath('..'), r'general\constrains.shp')
+    final = os.path.join(os.path.realpath('..'), r'POI\results_file\final.shp')
+    SightLineDB(constrains,final, False, 0, 'test_same_area')
     print(f'The new code - Finished in {time.time() - start} seconds')
     # create line for other points in the list
     """For standalone application"""
