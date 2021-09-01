@@ -78,7 +78,8 @@ class SameAreaCell:
         in_x = ((numpy.array([bounding.xMinimum(), bounding.xMaximum()]) - self.x_min) / self.size_cell).astype(int)
         in_y = ((numpy.array([bounding.yMinimum(), bounding.yMaximum()]) - self.y_min) / self.size_cell).astype(int)
         try:
-            [[self[x, y].poly.append(cur_poly) for x in range(in_x[0], in_x[1] + 1)] for y in range(in_y[0], in_y[1] + 1)]
+            [[self[x, y].poly.append(cur_poly) for x in range(in_x[0], in_x[1] + 1)] for y in
+             range(in_y[0], in_y[1] + 1)]
         except:
             pass
 
@@ -329,6 +330,8 @@ class SightLineDB:
         input_layers = [upload_new_layer(input_constrains, 'file'), upload_new_layer(input_in, 'file')]
         # Get  the layers' rectangle extent
         rectangle_points = []
+        self.times = []
+
         for input_layer in input_layers:
             extent = input_layer.extent()
             rectangle_points.append((extent.xMaximum(), extent.yMaximum()))
@@ -344,13 +347,15 @@ class SightLineDB:
         [geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()) for feature in
          input_layers[0].getFeatures()]
 
+        time_1 = time.time()
         # calculate sight line
         # In this list all the new features (sight lines) will be stored
         feats = []
         inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[1].getFeatures()]
         # save the cell location of each point in another array
         inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
-
+        self.times.append(time.time() - time_1)
+        time_1 = time.time()
         for index_i, point_start in enumerate(inter_pnt_list[:-1]):
             # print(index_i)
             index_j = index_i
@@ -372,6 +377,8 @@ class SightLineDB:
                     feat.setAttributes([index_i, index_j])  # Set attributes for the current id
                     feats.append(feat)
 
+        self.times.append(time.time() - time_1)
+
         # upload the gis file to remove old sight lines and make it ready for new sight lines
         path = os.path.join(os.path.dirname(__file__), 'sight_line')
         sight_line = QgsVectorLayer(path + '.shp', "sight_line", "ogr")
@@ -389,9 +396,7 @@ if __name__ == "__main__":
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     QgsApplication.initQgis()
     start = time.time()
-    constrains = os.path.join(os.path.realpath('..'), r'general\constrains.shp')
-    final = os.path.join(os.path.realpath('..'), r'POI\results_file\final.shp')
-    SightLineDB(constrains,final, False, 0, 'test_same_area')
+    SightLineDB('constrains.shp', 'intersections.shp', False, 0, 'test_same_area')
     print(f'The new code - Finished in {time.time() - start} seconds')
     # create line for other points in the list
     """For standalone application"""
