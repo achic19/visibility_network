@@ -490,9 +490,9 @@ class PoiVisibilityNetwork:
             final = os.path.join(os.path.dirname(__file__), r'work_folder\general\pois.shp')
 
         if self.processing_option != 3:
-            test_time = SightLineDB(constrains, final, restricted, restricted_length, res_folder)
-            self.iface.messageBar().pushMessage("Sight lines is created in {} seconds".
-                                                format(str(test_time.times)), level=Qgis.Info)
+            SightLineDB(constrains, final, restricted, restricted_length, res_folder)
+            # self.iface.messageBar().pushMessage("Sight lines is created in {} seconds".
+            #                                     format(str(test_time.times)), level=Qgis.Info)
         # copy sight nodes file to result folder
         my_sight_line.copy_shape_file_to_result_file(final, 'sight_node')
         # Add  new fields that store information about points type and id point

@@ -327,10 +327,10 @@ class SightLineDB:
         """
         # Input
 
-        input_layers = [upload_new_layer(input_constrains, 'file'), upload_new_layer(input_in, 'file')]
+        input_layers = [upload_new_layer(input_in, 'file'), upload_new_layer(input_constrains, 'file')]
         # Get  the layers' rectangle extent
         rectangle_points = []
-        self.times = []
+        # self.times = []
 
         for input_layer in input_layers:
             extent = input_layer.extent()
@@ -338,24 +338,23 @@ class SightLineDB:
             rectangle_points.append((extent.xMinimum(), extent.yMinimum()))
 
         # Build SameAreaCell object
-        size_cell = 50
+
+        size_cell = int(extent.area() / len([feature for feature in input_layers[1].getFeatures()]) * 0.0118)
         geo_data_base = SameAreaCell(rectangle_points, size_cell)
 
         # if Necessary create grid
         # geo_data_base.create_grid_shapefile()
 
         [geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()) for feature in
-         input_layers[0].getFeatures()]
+         input_layers[1].getFeatures()]
 
-        time_1 = time.time()
         # calculate sight line
         # In this list all the new features (sight lines) will be stored
         feats = []
-        inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[1].getFeatures()]
+        inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[0].getFeatures()]
         # save the cell location of each point in another array
         inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
-        self.times.append(time.time() - time_1)
-        time_1 = time.time()
+
         for index_i, point_start in enumerate(inter_pnt_list[:-1]):
             # print(index_i)
             index_j = index_i
@@ -377,8 +376,6 @@ class SightLineDB:
                     feat.setAttributes([index_i, index_j])  # Set attributes for the current id
                     feats.append(feat)
 
-        self.times.append(time.time() - time_1)
-
         # upload the gis file to remove old sight lines and make it ready for new sight lines
         path = os.path.join(os.path.dirname(__file__), 'sight_line')
         sight_line = QgsVectorLayer(path + '.shp', "sight_line", "ogr")
@@ -396,7 +393,7 @@ if __name__ == "__main__":
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     QgsApplication.initQgis()
     start = time.time()
-    SightLineDB('constrains.shp', 'intersections.shp', False, 0, 'test_same_area')
+    SightLineDB('test_same_area/building_1.shp', 'test_same_area/sight_node.shp', False, 0, 'test_same_area')
     print(f'The new code - Finished in {time.time() - start} seconds')
     # create line for other points in the list
     """For standalone application"""
