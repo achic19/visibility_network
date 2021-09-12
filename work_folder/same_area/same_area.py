@@ -1,20 +1,19 @@
 # Tell Python where you will get processing from
 import json
-import os
+from os.path import join, exists, dirname
 import sys
 import math
 from operator import itemgetter
 import numpy
 from PyQt5.QtGui import *
-# from test_same_area.test_same_area import test_same_area_grid
+
 from qgis.PyQt.QtCore import QVariant
-from qgis.core import *
-from shapely.geometry import Point
-from shapely.geometry import LineString
+
+from qgis.core import QgsPointXY, QgsRectangle, QgsGeometry, QgsVectorLayer, QgsFields, QgsField, QgsFeature
+
 from qgis.analysis import QgsNativeAlgorithms
 import time
 from shutil import copy
-import concurrent.futures
 
 # Reference the algorithm you want to run
 sys.path.append(r'C:\Program Files\QGIS 3.10\apps\qgis-ltr\python\plugins')
@@ -92,7 +91,7 @@ class SameAreaCell:
         # Create the grid layer
         # vector_grid = QgsVectorLayer('Polygon?crs=' + crs, 'vector_grid', 'memory')
         path = "test_same_area/grid.shp"
-        if os.path.exists(path):
+        if exists(path):
             print(path)
         else:
             print("path not exist - {}".format(path))
@@ -269,52 +268,6 @@ def azimuth_calculator(pnt1: QgsPointXY, pnt2: QgsPointXY) -> float:
     return azimuth
 
 
-def create_sight_lines():
-    '''
-    :param final: layer of points to calculate sight of lines
-    :return: success or fail massage
-    '''
-    """create lines based on the intersections"""
-
-    # Upload intersection layers
-    # Save points with python dataset
-    input_layer = upload_new_layer('intersections.shp', 'file')
-    junctions_features = input_layer.getFeatures()
-    # Get the geometry of each element into a list
-    python_geo = list(map(lambda x: x.geometry(), junctions_features))
-    # Populate line file with potential sight of lines
-    layer_path = 'performance/new_line.shp'
-    layer = upload_new_layer(layer_path, "layer")
-    layer.dataProvider().truncate()
-
-    fields = QgsFields()
-    fields.append(QgsField("from", QVariant.Int))
-    fields.append(QgsField("to", QVariant.Int))
-    feature_list = []
-    for i, feature in enumerate(python_geo):
-        for j in range(i + 1, len(python_geo)):
-            # Add geometry to lines' features  - the nodes of each line
-            feat = QgsFeature()
-            point1 = feature.asPoint()
-            point2 = python_geo[j].asPoint()
-            gLine = QgsGeometry.fromPolylineXY([point1, point2])
-            feat.setGeometry(gLine)
-            # Add  the nodes id as attributes to lines' features
-            feat.setFields(fields)
-            feat.setAttributes([i, j])
-            feature_list.append(feat)
-    layer.dataProvider().addFeatures(feature_list)
-
-    """Run native algorithm ( in C++) to find sight line)"""
-
-    intersect = 'constrains.shp'
-    line_path = 'performance/new_line.shp'
-    sight_line_output = 'performance/_sight_line_classic.shp'
-    params = {'INPUT': line_path, 'PREDICATE': [2], 'INTERSECT': intersect,
-              'OUTPUT': sight_line_output}
-    processing.run('native:extractbylocation', params)
-
-
 class SightLineDB:
     def __init__(self, input_constrains: str, input_in: str, restricted: bool, restricted_length: int, folder: str):
         """
@@ -377,7 +330,7 @@ class SightLineDB:
                     feats.append(feat)
 
         # upload the gis file to remove old sight lines and make it ready for new sight lines
-        path = os.path.join(os.path.dirname(__file__), 'sight_line')
+        path = join(dirname(__file__), 'sight_line')
         sight_line = QgsVectorLayer(path + '.shp', "sight_line", "ogr")
         sight_line.dataProvider().truncate()
         sight_line.dataProvider().addFeatures(feats)
@@ -387,6 +340,8 @@ class SightLineDB:
 
 
 if __name__ == "__main__":
+    from qgis.core import QgsApplication
+
     # Start new Qgis application
     app = QGuiApplication([])
     QgsApplication.setPrefixPath(r'C:\Program Files\QGIS 3.0\apps\qgis', True)
