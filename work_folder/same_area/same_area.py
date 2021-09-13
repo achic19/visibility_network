@@ -1,8 +1,8 @@
 # Tell Python where you will get processing from
-import json
+
 from os.path import join, exists, dirname
 import sys
-import math
+
 from operator import itemgetter
 import numpy
 from PyQt5.QtGui import *
@@ -30,11 +30,9 @@ class Cell:
         :param i_x: cell index in x direction
         :param i_y: cell index in y direction
         """
-        self.poly = []
-        self.extent = {'SW': QgsPointXY(x, y), 'SE': QgsPointXY(x + spacing, y),
-                       'NE': QgsPointXY(x + spacing, y + spacing), 'NW': QgsPointXY(x, y + spacing)}
-        self.i_e = i_x
-        self.i_n = i_y
+        self.poly, self.extent, self.i_e, self.i_n = [], {'SW': QgsPointXY(x, y), 'SE': QgsPointXY(x + spacing, y),
+                                                          'NE': QgsPointXY(x + spacing, y + spacing),
+                                                          'NW': QgsPointXY(x, y + spacing)}, i_x, i_y
 
     def __iter__(self):
         return iter(self.poly)
@@ -126,8 +124,6 @@ class FindSightLine:
     def __init__(self, cur_line: QgsGeometry, cur_cell: list, end_cell: list, data_base: SameAreaCell):
         """
         It checks and builds a sight line between two points
-        :param start_line:
-        :param end_line:
         :param cur_cell:
         :param end_cell:
         :param data_base:
@@ -280,10 +276,9 @@ class SightLineDB:
         """
         # Input
 
-        input_layers = [upload_new_layer(input_in, 'file'), upload_new_layer(input_constrains, 'file')]
+        input_layers, rectangle_points = [upload_new_layer(input_in, 'file'),
+                                          upload_new_layer(input_constrains, 'file')], []
         # Get  the layers' rectangle extent
-        rectangle_points = []
-        # self.times = []
 
         for input_layer in input_layers:
             extent = input_layer.extent()
@@ -303,8 +298,7 @@ class SightLineDB:
 
         # calculate sight line
         # In this list all the new features (sight lines) will be stored
-        feats = []
-        inter_pnt_list = [feature.geometry().asPoint() for feature in input_layers[0].getFeatures()]
+        feats, inter_pnt_list = [], [feature.geometry().asPoint() for feature in input_layers[0].getFeatures()]
         # save the cell location of each point in another array
         inter_cell_list = [(geo_data_base.find_cell(feature)) for feature in inter_pnt_list]
 
@@ -321,8 +315,7 @@ class SightLineDB:
                 if restricted and point_start.distance(point_end) > restricted_length:
                     continue
                 # Call to FindSightLine class to check if sight line is exist
-                cell_end = inter_cell_list[index_j]
-                test_line = QgsGeometry.fromPolylineXY([point_start, point_end])
+                cell_end, test_line = inter_cell_list[index_j], QgsGeometry.fromPolylineXY([point_start, point_end])
                 if FindSightLine(test_line, cell_first, cell_end, geo_data_base).is_sight_line:
                     feat = QgsFeature()
                     feat.setGeometry(test_line)
