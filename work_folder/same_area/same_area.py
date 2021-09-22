@@ -45,16 +45,17 @@ class SameAreaCell:
         :param points_list:
         """
         # Number of cell in each dimension
-        self.size_cell = size
-        self.x_min = min(points_list, key=itemgetter(0))[0]
-        self.y_min = min(points_list, key=itemgetter(1))[1]
-        self.x_max = max(points_list, key=itemgetter(0))[0]
-        self.y_max = max(points_list, key=itemgetter(1))[1]
-        self.num_of_pnt = 0
-        n_y = int((self.y_max - self.y_min) / self.size_cell) + 1
-        n_x = int((self.x_max - self.x_min) / self.size_cell) + 1
+        self.size_cell, self.num_of_pnt, self.x_min, self.y_min, x_max, y_max = size, 0, min(points_list,
+                                                                                             key=itemgetter(
+                                                                                                 0))[
+            0], min(points_list, key=itemgetter(1))[1], max(points_list, key=itemgetter(0))[0], max(points_list,
+                                                                                                    key=itemgetter(1))[
+                                                                                    1]
+        size_cell, x_min, y_min = self.size_cell, self.x_min, self.y_min
+        n_y, n_x = int((y_max - y_min) / size_cell) + 1, int(
+            (x_max - x_min) / size_cell) + 1
         self.data_set = [
-            [Cell(self.x_min + ii * self.size_cell, self.y_min + j * self.size_cell, self.size_cell, ii, j) for j in
+            [Cell(x_min + ii * size_cell, y_min + j * size_cell, size_cell, ii, j) for j in
              range(n_y)] for ii in range(n_x)]
 
     def __getitem__(self, p):
@@ -72,17 +73,18 @@ class SameAreaCell:
         :param cur_poly: the polygon to add
         :return:
         """
-        in_x = ((numpy.array([bounding.xMinimum(), bounding.xMaximum()]) - self.x_min) / self.size_cell).astype(int)
-        in_y = ((numpy.array([bounding.yMinimum(), bounding.yMaximum()]) - self.y_min) / self.size_cell).astype(int)
+        size_cell = self.size_cell
+        in_x, in_y = ((numpy.array([bounding.xMinimum(), bounding.xMaximum()]) - self.x_min) / size_cell).astype(
+            int), ((numpy.array([bounding.yMinimum(), bounding.yMaximum()]) - self.y_min) / size_cell).astype(int)
         try:
-            [[self[x, y].poly.append(cur_poly) for x in range(in_x[0], in_x[1] + 1)] for y in
-             range(in_y[0], in_y[1] + 1)]
+            _ = ([self[x, y].poly.append(cur_poly) for x in range(in_x[0], in_x[1] + 1)] for y in
+                 range(in_y[0], in_y[1] + 1))
         except:
             pass
 
     def find_cell(self, pnt: QgsPointXY):
-        in_x = int((pnt[0] - self.x_min) / self.size_cell)
-        in_y = int((pnt[1] - self.y_min) / self.size_cell)
+        size_cell = self.size_cell
+        in_x, in_y = int((pnt[0] - self.x_min) / size_cell), int((pnt[1] - self.y_min) / size_cell)
         return [in_x, in_y]
 
     def create_grid_shapefile(self):
@@ -128,11 +130,8 @@ class FindSightLine:
         :param end_cell:
         :param data_base:
         """
-        self.test_line = cur_line
-        self.cur_cell = cur_cell
-        self.end_cell = end_cell
-        self.data_base = data_base
-        self.is_sight_line = True
+        self.test_line, self.cur_cell, self.end_cell, self.data_base, self.is_sight_line = cur_line, cur_cell, end_cell, \
+                                                                                           data_base, True
 
         # If the current line intersects polygon lines, this line is not sight line
         if self.calculate_intersections():
@@ -293,8 +292,8 @@ class SightLineDB:
         # if Necessary create grid
         # geo_data_base.create_grid_shapefile()
 
-        [geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()) for feature in
-         input_layers[1].getFeatures()]
+        map(lambda feature: geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()),
+            input_layers[1].getFeatures())
 
         # calculate sight line
         # In this list all the new features (sight lines) will be stored
@@ -329,7 +328,7 @@ class SightLineDB:
         sight_line.dataProvider().addFeatures(feats)
 
         # save the results into the specified folder
-        [copy('.'.join((path, file_ext)), folder) for file_ext in ('dbf', 'prj', 'shp', 'shx')]
+        map(lambda file_ext: copy('.'.join((path, file_ext)), folder), ('dbf', 'prj', 'shp', 'shx'))
 
 
 if __name__ == "__main__":
