@@ -331,7 +331,7 @@ class SightLineDB:
         map(lambda file_ext: copy('.'.join((path, file_ext)), folder), ('dbf', 'prj', 'shp', 'shx'))
 
 
-if __name__ == "__main__":
+def main():
     from qgis.core import QgsApplication
 
     # Start new Qgis application
@@ -339,11 +339,16 @@ if __name__ == "__main__":
     QgsApplication.setPrefixPath(r'C:\Program Files\QGIS 3.0\apps\qgis', True)
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
     QgsApplication.initQgis()
-    start = time.time()
-    SightLineDB('test_same_area/building_1.shp', 'test_same_area/sight_node.shp', False, 0, 'test_same_area')
-    print(f'The new code - Finished in {time.time() - start} seconds')
+
+    SightLineDB('test_same_area/building_1.shp', 'test_same_area/sight_node.shp', True, 1000, 'test_same_area')
+
     # create line for other points in the list
     """For standalone application"""
     # Exit applications
     QgsApplication.exitQgis()
     app.exit()
+
+
+if __name__ == "__main__":
+    import cProfile
+    cProfile.run('main()', 'output.dat')
