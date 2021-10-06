@@ -26,7 +26,7 @@ if inty < 16:
 class SightLine:
     """This class handles all the logic about the  sight lines."""
 
-    def __init__(self, network=None, constrains=None, res_folder=None, project=None, use='plugin'):
+    def __init__(self, network=None, constrains=None, res_folder=None, project=None):
         """ Constrictor
          :param network to find intersections
          :param constrains the optional sight lines
@@ -38,13 +38,6 @@ class SightLine:
         self.network_st = os.path.join(os.path.dirname(__file__),
                                        r'work_folder\fix_geometry\results_file\dissolve_0.shp')
         self.junc_loc_0 = os.path.dirname(__file__) + r'\work_folder\general\intersections_0.shp'
-        if use == "standalone":
-            app = QGuiApplication([])
-            QgsApplication.setPrefixPath(r'C:\Program Files\QGIS 3.0\apps\qgis', True)
-            QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
-            QgsApplication.initQgis()
-        # general attributes
-        self.use = use
 
         # These attributes are input from the user
         if network is not None:
@@ -69,8 +62,7 @@ class SightLine:
         self.project = project
 
     @staticmethod
-    def reproject(layers_to_project_path, target_crs='EPSG:3857',
-                  names_list=['constrains', 'pois', 'networks'], relative_folder='work_folder/general/'):
+    def reproject(layers_to_project_path, target_crs='EPSG:3857', relative_folder='work_folder/general/'):
         '''
         :param layers_to_project_path: list of layer to project
         :param target_crs: to project
@@ -79,7 +71,7 @@ class SightLine:
         :return:
         '''
         """Reproject all input layers to 3857 CRS (default - 3857)"""
-
+        names_list = ['constrains', 'pois', 'networks']
         for i, layer in enumerate(layers_to_project_path):
             if not (layer is None):
                 # the name for the new reproject file
@@ -301,9 +293,3 @@ class SightLine:
     def add_layers_to_pro(self, layer_array):
         """Adding layers to project"""
         self.project.addMapLayers(layer_array)
-
-    def close(self):
-        """For standalone application"""
-        # Exit applications
-        QgsApplication.exitQgis()
-        self.app.exit()

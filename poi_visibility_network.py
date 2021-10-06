@@ -428,16 +428,15 @@ class PoiVisibilityNetwork:
         '''
         # In case of constrain as polyline file and network involve POI, the polyline file should convert to
         # to polygon file
-        if self.processing_option != 2:  # don't run in case processing 2 is selected by the user
-            if constrains_gis.geometryType() == 1 and self.graph_to_draw in ['ivg', 'poi']:
-                feedback = QgsProcessingFeedback()
-                output = os.path.join(os.path.dirname(__file__), r'work_folder/input/building_1.shp')
-                alg = LinesToPolygons()
-                alg.initAlgorithm()
-                context = QgsProcessingContext()
-                params = {'INPUT': constrains_gis, 'OUTPUT': output}
-                alg.processAlgorithm(params, context, feedback=feedback)
-                constrains_temp = output
+        if constrains_gis.geometryType() == 1 and self.graph_to_draw in ['ivg', 'poi']:
+            feedback = QgsProcessingFeedback()
+            output = os.path.join(os.path.dirname(__file__), r'work_folder/input/building_1.shp')
+            alg = LinesToPolygons()
+            alg.initAlgorithm()
+            context = QgsProcessingContext()
+            params = {'INPUT': constrains_gis, 'OUTPUT': output}
+            alg.processAlgorithm(params, context, feedback=feedback)
+            constrains_temp = output
         # #  Reproject layers files
         if self.processing_option != 2:
             SightLine.reproject([constrains_temp, poi_temp, network_temp])
@@ -485,7 +484,7 @@ class PoiVisibilityNetwork:
 
         # Calc sight lines
         # calc sight lines directly from the user input ( after projection)
-        elif self.processing_option == 2:
+        else:
             my_sight_line = SightLine(constrains=constrains, res_folder=res_folder, project=NULL)
             final = os.path.join(os.path.dirname(__file__), r'work_folder\general\pois.shp')
 

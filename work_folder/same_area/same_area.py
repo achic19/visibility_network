@@ -77,8 +77,8 @@ class SameAreaCell:
         in_x, in_y = ((numpy.array([bounding.xMinimum(), bounding.xMaximum()]) - self.x_min) / size_cell).astype(
             int), ((numpy.array([bounding.yMinimum(), bounding.yMaximum()]) - self.y_min) / size_cell).astype(int)
         try:
-            _ = ([self[x, y].poly.append(cur_poly) for x in range(in_x[0], in_x[1] + 1)] for y in
-                 range(in_y[0], in_y[1] + 1))
+            [[self[x, y].poly.append(cur_poly) for x in range(in_x[0], in_x[1] + 1)] for y in
+             range(in_y[0], in_y[1] + 1)]
         except:
             pass
 
@@ -87,39 +87,39 @@ class SameAreaCell:
         in_x, in_y = int((pnt[0] - self.x_min) / size_cell), int((pnt[1] - self.y_min) / size_cell)
         return [in_x, in_y]
 
-    def create_grid_shapefile(self):
-        # Create the grid layer
-        # vector_grid = QgsVectorLayer('Polygon?crs=' + crs, 'vector_grid', 'memory')
-        path = "test_same_area/grid.shp"
-        if exists(path):
-            print(path)
-        else:
-            print("path not exist - {}".format(path))
-            return
-        vector_grid = QgsVectorLayer(path, "grid", "ogr")
-        vector_grid.dataProvider().truncate()
-        prov = vector_grid.dataProvider()
-
-        # Add ids and coordinates fields
-        if vector_grid.fields()[-1].name() != 'num_of_pnt':
-            fields = QgsFields()
-            fields.append(QgsField('id_east', QVariant.Int, '', 20, 0))
-            fields.append(QgsField('id_north', QVariant.Int, '', 20, 0))
-            fields.append(QgsField('num_of_pnt', QVariant.Int, '', 20, 0))
-            prov.addAttributes(fields)
-        my_id = 0
-        for cell_row in self.data_set:
-            for cell in cell_row:
-                feat = QgsFeature()
-                feat.setGeometry(
-                    QgsGeometry().fromPolygonXY([list(cell.extent.values())]))  # Set geometry for the current id
-                print(list(cell.extent.values()))
-                feat.setAttributes([my_id, cell.i_e, cell.i_n, len(cell.poly)])  # Set attributes for the current id
-                print('{},{} :{}'.format(cell.i_e, cell.i_n, len(cell.poly)))
-                prov.addFeatures([feat])
-                my_id += 1
-        # Update fields for the vector grid
-        vector_grid.updateFields()
+    # def create_grid_shapefile(self):
+    #     # Create the grid layer
+    #     # vector_grid = QgsVectorLayer('Polygon?crs=' + crs, 'vector_grid', 'memory')
+    #     path = "test_same_area/grid.shp"
+    #     if exists(path):
+    #         print(path)
+    #     else:
+    #         print("path not exist - {}".format(path))
+    #         return
+    #     vector_grid = QgsVectorLayer(path, "grid", "ogr")
+    #     vector_grid.dataProvider().truncate()
+    #     prov = vector_grid.dataProvider()
+    #
+    #     # Add ids and coordinates fields
+    #     if vector_grid.fields()[-1].name() != 'num_of_pnt':
+    #         fields = QgsFields()
+    #         fields.append(QgsField('id_east', QVariant.Int, '', 20, 0))
+    #         fields.append(QgsField('id_north', QVariant.Int, '', 20, 0))
+    #         fields.append(QgsField('num_of_pnt', QVariant.Int, '', 20, 0))
+    #         prov.addAttributes(fields)
+    #     my_id = 0
+    #     for cell_row in self.data_set:
+    #         for cell in cell_row:
+    #             feat = QgsFeature()
+    #             feat.setGeometry(
+    #                 QgsGeometry().fromPolygonXY([list(cell.extent.values())]))  # Set geometry for the current id
+    #             print(list(cell.extent.values()))
+    #             feat.setAttributes([my_id, cell.i_e, cell.i_n, len(cell.poly)])  # Set attributes for the current id
+    #             print('{},{} :{}'.format(cell.i_e, cell.i_n, len(cell.poly)))
+    #             prov.addFeatures([feat])
+    #             my_id += 1
+    #     # Update fields for the vector grid
+    #     vector_grid.updateFields()
 
 
 class FindSightLine:
@@ -289,11 +289,11 @@ class SightLineDB:
         size_cell = int(extent.area() / len([feature for feature in input_layers[1].getFeatures()]) * 0.0118)
         geo_data_base = SameAreaCell(rectangle_points, size_cell)
 
-        # if Necessary create grid
+        # if Necessary create grid. Uncomment the method
         # geo_data_base.create_grid_shapefile()
 
-        map(lambda feature: geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()),
-            input_layers[1].getFeatures())
+        [geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()) for feature in
+         input_layers[1].getFeatures()]
 
         # calculate sight line
         # In this list all the new features (sight lines) will be stored
@@ -328,7 +328,7 @@ class SightLineDB:
         sight_line.dataProvider().addFeatures(feats)
 
         # save the results into the specified folder
-        map(lambda file_ext: copy('.'.join((path, file_ext)), folder), ('dbf', 'prj', 'shp', 'shx'))
+        [copy('.'.join((path, file_ext)), folder) for file_ext in ('dbf', 'prj', 'shp', 'shx')]
 
 
 def main():
@@ -350,5 +350,19 @@ def main():
 
 
 if __name__ == "__main__":
-    import cProfile
-    cProfile.run('main()', 'output.dat')
+    import cProfile, pstats
+    from os import unlink, path
+
+    # delete old sight line file
+    file_path = 'test_same_area/sight_line'
+    for file_ext in ('dbf', 'prj', 'shp', 'shx'):
+        file_path_ext = '.'.join((file_path, file_ext))
+        if path.isfile(file_path_ext):
+            unlink(file_path_ext)
+
+    profiler = cProfile.Profile()
+    profiler.enable()
+    main()
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats('time')
+    stats.print_stats()
