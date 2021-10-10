@@ -38,6 +38,16 @@ class Cell:
         return iter(self.poly)
 
 
+class SameAreaPoly:
+    def __init__(self, poly: QgsGeometry):
+        """
+        The class stores : QgsGeometry Polygon and a boolean value that check if it is checked in  the SameArea database
+        :param poly:
+        """
+        self.poly_qgs = poly
+        self.is_passed = False
+
+
 class SameAreaCell:
     def __init__(self, points_list, size):
         """
@@ -74,6 +84,7 @@ class SameAreaCell:
         :return:
         """
         size_cell = self.size_cell
+        cur_poly = SameAreaPoly(cur_poly)
         in_x, in_y = ((numpy.array([bounding.xMinimum(), bounding.xMaximum()]) - self.x_min) / size_cell).astype(
             int), ((numpy.array([bounding.yMinimum(), bounding.yMaximum()]) - self.y_min) / size_cell).astype(int)
         try:
@@ -221,8 +232,10 @@ class FindSightLine:
         """
         cur_cell = self.data_base[self.cur_cell]
         for poly in cur_cell:
-            if self.test_line.crosses(poly):
+            if self.test_line.crosses(poly.poly_qgs):
                 return True
+            else:
+                poly.is_passed = True
         return False
 
 
