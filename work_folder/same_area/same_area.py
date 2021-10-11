@@ -45,7 +45,10 @@ class SameAreaPoly:
         :param poly:
         """
         self.poly_qgs = poly
-        self.is_passed = False
+        self.is_no_passed = True
+
+    def set_is_no_passed(self):
+        self.is_no_passed = True
 
 
 class SameAreaCell:
@@ -76,7 +79,7 @@ class SameAreaCell:
         x, y = p
         return self.data_set[x][y]
 
-    def add_polygons(self, bounding: QgsRectangle, cur_poly: QgsGeometry):
+    def add_polygons(self, bounding: QgsRectangle, cur_poly: SameAreaPoly):
         """
         add a polygon to all cells that cross the polygon
         :param bounding: polygon rectangle extent
@@ -84,7 +87,7 @@ class SameAreaCell:
         :return:
         """
         size_cell = self.size_cell
-        cur_poly = SameAreaPoly(cur_poly)
+
         in_x, in_y = ((numpy.array([bounding.xMinimum(), bounding.xMaximum()]) - self.x_min) / size_cell).astype(
             int), ((numpy.array([bounding.yMinimum(), bounding.yMaximum()]) - self.y_min) / size_cell).astype(int)
         try:
@@ -143,6 +146,9 @@ class FindSightLine:
         """
         self.test_line, self.cur_cell, self.end_cell, self.data_base, self.is_sight_line = cur_line, cur_cell, end_cell, \
                                                                                            data_base, True
+        # Only polygons been passed will be store it to change their status later
+        self.passed_polys = []
+
 
         # If the current line intersects polygon lines, this line is not sight line
         if self.calculate_intersections():
@@ -232,10 +238,11 @@ class FindSightLine:
         """
         cur_cell = self.data_base[self.cur_cell]
         for poly in cur_cell:
-            if self.test_line.crosses(poly.poly_qgs):
+            if poly.is_no_passed and self.test_line.crosses(poly.poly_qgs):
                 return True
             else:
-                poly.is_passed = True
+                poly.is_no_passed = False
+                self.passed_polys.append(poly)
         return False
 
 
@@ -305,7 +312,7 @@ class SightLineDB:
         # if Necessary create grid. Uncomment the method
         # geo_data_base.create_grid_shapefile()
 
-        [geo_data_base.add_polygons(feature.geometry().boundingBox(), feature.geometry()) for feature in
+        [geo_data_base.add_polygons(feature.geometry().boundingBox(), SameAreaPoly(feature.geometry())) for feature in
          input_layers[1].getFeatures()]
 
         # calculate sight line
@@ -328,11 +335,14 @@ class SightLineDB:
                     continue
                 # Call to FindSightLine class to check if sight line is exist
                 cell_end, test_line = inter_cell_list[index_j], QgsGeometry.fromPolylineXY([point_start, point_end])
-                if FindSightLine(test_line, cell_first, cell_end, geo_data_base).is_sight_line:
+                find_sight_line = FindSightLine(test_line, cell_first, cell_end, geo_data_base)
+                if find_sight_line.is_sight_line:
                     feat = QgsFeature()
                     feat.setGeometry(test_line)
                     feat.setAttributes([index_i, index_j])  # Set attributes for the current id
                     feats.append(feat)
+                # Set the status of polygons to be not passed
+                [feature.set_is_no_passed() for feature in find_sight_line.passed_polys]
 
         # upload the gis file to remove old sight lines and make it ready for new sight lines
         path = join(dirname(__file__), 'sight_line')
